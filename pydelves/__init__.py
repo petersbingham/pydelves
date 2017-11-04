@@ -234,6 +234,18 @@ def purge(lst,eps=1e-5):
             return purge(lst[:-1],eps)
     return purge(lst[:-1],eps) + [lst[-1]]
 
+def get_unique(lst1,lst2,eps=1e-5):
+    newlst = []
+    for el1 in lst1:
+        fnd = False
+        for el2 in lst2:
+            if abs(el1-el2) < eps:
+                fnd = True
+                break
+        if not fnd:
+            newlst.append(el1)
+    return newlst
+
 def linspace(c1,c2,num=50):
     '''
     make a linespace method for complex numbers.
@@ -252,7 +264,6 @@ def linspace(c1,c2,num=50):
     y2 = c2.imag*(num-1.)/num+y1*(1.)/num
     return [real+imag*1j for real,imag in zip(np.linspace(x1,x2,num=num),
                                               np.linspace(y1,y2,num=num)) ]
-
 
 def get_boundary(x_cent,y_cent,width,height,N):
     '''
@@ -389,7 +400,7 @@ def handle_warning(warn,verbose,lvl_cnt):
 
 def print_roots_rect_summary(warn,num_final_roots,num_added_conj_roots,roots_near_boundary,
                            I0,num_interior_roots_fnd,num_sub_roots_fnd,num_known_roots,
-                           x_cent,y_cent,width,height,num_regions,lvl_cnt,verbose):
+                           x_cent,y_cent,width,height,num_regions,lvl_cnt,dist_thres,verbose):
     '''
     Return final roots and optionally prints summary of get_roots_rect.
 
@@ -438,23 +449,25 @@ def print_roots_rect_summary(warn,num_final_roots,num_added_conj_roots,roots_nea
             if warn & warn_root_subtraction_division_by_zero:
                 print s+"  -Division by zero when subtracting roots."
 
-        roots_within_boundary = inside_boundary(purge(roots_near_boundary),
-                                                x_cent,y_cent,width,height)
-        num_roots_found = num_interior_roots_fnd + num_sub_roots_fnd
-        print s+"Total of " + str(num_final_roots) + " roots found."
+        roots_within_boundary = inside_boundary(
+                                    purge(roots_near_boundary,dist_thres),
+                                    x_cent,y_cent,width,height)
+        num_roots_found = num_interior_roots_fnd+num_sub_roots_fnd+num_added_conj_roots
         if num_known_roots != 0:
-            print s+"  " + str(num_known_roots) + " already discovered."
+            print s + str(num_known_roots) + " known roots."
+        print s+"Total of " + str(num_final_roots) + " new roots found."
         print s+"  " + str(len(roots_within_boundary)) + " from Boundary Muller."
         print (s+"  {:.5f}".format(abs(I0)) + " Roche predicted roots. " + 
                str(num_roots_found) + " of these located:")
         print s+"    " + str(num_interior_roots_fnd) + " from Poly Muller."
         print s+"    " + str(num_sub_roots_fnd) + " from subregions."
         if num_added_conj_roots != 0:
-            print s+"  " + str(num_added_conj_roots) + " added conjugates."
+            print s+"    " + str(num_added_conj_roots) + " added conjugates."
 
 def print_roots(roots_near_boundary_all,roots_near_boundary,roots_subtracted,
                 roots_rough,roots_interior_mull_all,roots_interior_mull,
-                roots_interior_all_subs,roots_all,roots_final,lvl_cnt,verbose):
+                roots_interior_mull_unique,roots_interior_all_subs,roots_all,
+                roots_final,roots_new,lvl_cnt,verbose):
     s = " "*lvl_cnt
     if verbose:
         print "\n"+s+"All:\n" + str(np.array(roots_near_boundary_all))
@@ -464,11 +477,15 @@ def print_roots(roots_near_boundary_all,roots_near_boundary,roots_subtracted,
         print s+"Rough:\n" + str(roots_rough)
         print s+"Interior:\n" + str(np.array(roots_interior_mull_all))
         print s+"Purged:\n" + str(np.array(roots_interior_mull))
+        print s+"Unique:\n" + str(np.array(roots_interior_mull_unique))
+        print ""
+        print s+"Subs:\n" + str(np.array(roots_interior_all_subs))
         print ""
         print s+"All:\n" + str(np.array(roots_all))
         print s+"Final:\n" + str(np.array(roots_final))
+        print s+"New:\n" + str(np.array(roots_new))
 
-def locate_roots(x1,x2,x3,f,mul_tol,mul_N,roots,log,lvl_cnt):
+def locate_muller_root(x1,x2,x3,f,mul_tol,mul_N,roots,log,lvl_cnt):
     warn = 0
     try:          
         mull_root,ret = Muller(x1,x2,x3,f,mul_tol,mul_N)
@@ -480,16 +497,16 @@ def locate_roots(x1,x2,x3,f,mul_tol,mul_N,roots,log,lvl_cnt):
         warn |= handle_warning(warn_bnd_muller_exception,log&log_all_warn,lvl_cnt)
     return warn
 
-def finialise_roots(roots,x_cent,y_cent,width,height,conj_min_imag):
+def correct_roots(roots,x_cent,y_cent,width,height,conj_min_imag):
     roots_inside = inside_boundary(roots,x_cent,y_cent,width,height)
-    num_added_roots = 0
+    conjs_added = 0
     if conj_min_imag:
         roots_final = inside_boundary(add_missing_conjugates(roots_inside),
                                       x_cent,y_cent,width,height)
-        num_added_roots = len(roots_final)-len(roots_inside)
+        conjs_added = len(roots_final)-len(roots_inside)
     else:
         roots_final = roots_inside
-    return roots_final, num_added_roots
+    return roots_final, conjs_added
 
 log_off = 0
 log_recursive = 1
@@ -507,7 +524,7 @@ warn_not_all_interior_fnd = 64
 warn_root_subtraction_division_by_zero = 128
 def get_roots_rect(f,fp,x_cent,y_cent,width,height,N=10,outlier_coeff=100.,
     max_steps=5,mul_tol=1e-12,mul_N=400,mul_off=1e-5,max_order=10,
-    purge_eps=1e-7,conj_min_imag=None,log=log_off,roots_known=[],lvl_cnt=0):
+    dist_thres=1e-7,conj_min_imag=None,log=log_off,roots_known=[],lvl_cnt=0):
     '''
     I assume f is analytic with simple (i.e. order one) zeros.
 
@@ -572,11 +589,11 @@ def get_roots_rect(f,fp,x_cent,y_cent,width,height,N=10,outlier_coeff=100.,
     outliers = find_maxes(map(abs,y))
     roots_near_boundary_all = []
     for outlier_index in outliers:
-        warn |= locate_roots(c[outlier_index-2],c[outlier_index+2],
-                             c[outlier_index]/2,f,mul_tol,mul_N,
-                             roots_near_boundary_all,log,lvl_cnt)
-    roots_near_boundary = purge(roots_near_boundary_all)
-    roots_subtracted = purge(roots_near_boundary+roots_known)
+        warn |= locate_muller_root(c[outlier_index-2],c[outlier_index+2],
+                                   c[outlier_index]/2,f,mul_tol,mul_N,
+                                   roots_near_boundary_all,log,lvl_cnt)
+    roots_near_boundary = purge(roots_near_boundary_all,dist_thres)
+    roots_subtracted = purge(roots_near_boundary+roots_known,dist_thres)
     # We don't need the roots far outside the boundary
     roots_subtracted = inside_boundary(roots_subtracted,x_cent,y_cent,
                                        width+2.,height+2.)
@@ -593,66 +610,82 @@ def get_roots_rect(f,fp,x_cent,y_cent,width,height,N=10,outlier_coeff=100.,
             warn |= handle_warning(warn_root_subtraction_division_by_zero,
                                    log&log_all_warn,lvl_cnt)
     I0 = integrate.trapz(y_smooth, c)  # Approx number of roots not subtracted
-    num_roots_interior_mull = int(round(abs(I0)))
+    tot_num_interior_pred = int(round(abs(I0)))
     
     roots_rough = []
     roots_interior_mull_all = []
     roots_interior_mull = []
     if I0 < max_order:
         # If there's only a few roots, find them.
-        if num_roots_interior_mull == 0:
-            roots_final,num_added_roots = finialise_roots(roots_subtracted,
-                                                          x_cent,y_cent,width,
-                                                          height,conj_min_imag)
-            print_roots_rect_summary(warn,len(roots_final),num_added_roots,
-                                     roots_near_boundary,I0,0,0,len(roots_known),
-                                     x_cent,y_cent,width,height,num_regions,
-                                     lvl_cnt,log&log_summary)
-            return roots_final,warn,num_regions
-        if abs(num_roots_interior_mull-I0)>0.005:
+        if tot_num_interior_pred == 0:
+            roots_final,conjs_added = correct_roots(roots_subtracted,x_cent,
+                                                   y_cent,width,height,
+                                                   conj_min_imag)
+            roots_new = get_unique(roots_final,roots_known,dist_thres)
+            print_roots_rect_summary(warn,len(roots_final),conjs_added,
+                                     roots_near_boundary,I0,0,0,
+                                     len(roots_known),x_cent,y_cent,width,
+                                     height,num_regions,lvl_cnt,dist_thres,
+                                     log&log_summary)
+            print_roots(roots_near_boundary_all,roots_near_boundary,roots_subtracted,
+                        [],[],[],[],[],[],roots_final,roots_new,lvl_cnt,log&log_debug)
+            return roots_new,warn,num_regions
+        if abs(tot_num_interior_pred-I0)>0.005:
             warn |= handle_warning(warn_imprecise_roots,log&log_all_warn,
                                    lvl_cnt)
 
-        roots_rough = locate_poly_roots(y_smooth,c,num_roots_interior_mull)
+        roots_rough = locate_poly_roots(y_smooth,c,tot_num_interior_pred)
         ##TODO: best way to pick points for Muller method below
         for root in roots_rough:
-            warn |= locate_roots(root-mul_off,root+mul_off,root,f,mul_tol,
-                                 mul_N,roots_interior_mull_all,log,lvl_cnt)
-        roots_interior_mull = purge(roots_interior_mull_all)
-    roots_all = purge(roots_near_boundary+roots_interior_mull)
+            warn |= locate_muller_root(root-mul_off,root+mul_off,root,f,mul_tol,
+                                       mul_N,roots_interior_mull_all,log,
+                                       lvl_cnt)
+        roots_interior_mull = purge(roots_interior_mull_all,dist_thres)
+    roots_interior_mull_unique = get_unique(roots_interior_mull,
+                                            roots_near_boundary,dist_thres)
+    roots_all = purge(roots_near_boundary+roots_interior_mull_unique,dist_thres)
 
-
+    # Dont add conjs to roots_all at this stage. conjs added to interior may be 
+    # contained within the boundary.
+    roots_interior_mull_final,conjs_added = correct_roots(roots_interior_mull_unique,
+                                                         x_cent,y_cent,width,height,
+                                                         conj_min_imag)
     # If some interior roots are missed or if there were many roots,
     # subdivide the rectangle and search recursively.
     roots_interior_all_subs = []
-    if I0>=max_order or len(roots_all) < num_roots_interior_mull and max_steps != 0:
+    all_interior_found = len(roots_interior_mull_final) >= tot_num_interior_pred
+    if (I0>=max_order or not all_interior_found) and max_steps!=0:
         x_list = [x_cent - width / 2.,x_cent - width / 2.,
                   x_cent + width / 2.,x_cent + width / 2.]
         y_list = [y_cent - height / 2.,y_cent + height / 2.,
                   y_cent - height / 2.,y_cent + height / 2.]
         for x,y in zip(x_list,y_list):
             new_log = log if log&log_recursive else log_off
-            roots_from_subrectangle,newWarn,new_regions = get_roots_rect(f,fp,x,
-                y,width/2.,height/2.,N,outlier_coeff,max_steps-1,mul_tol,mul_N,
-                mul_off,max_order,purge_eps,conj_min_imag,new_log,roots_all,lvl_cnt+1)
+            roots_from_subrectangle,newWarn,new_regions = get_roots_rect(f,fp,
+                x,y,width/2.,height/2.,N,outlier_coeff,max_steps-1,mul_tol,
+                mul_N,mul_off,max_order,dist_thres,conj_min_imag,new_log,
+                roots_all,lvl_cnt+1)
             warn |= newWarn
             num_regions += new_regions
             roots_interior_all_subs.extend(roots_from_subrectangle)
     elif max_steps == 0:
         warn |= handle_warning(warn_max_steps_exceeded,log&log_all_warn,lvl_cnt)
-    if len(roots_interior_mull+roots_interior_all_subs) != num_roots_interior_mull:
+    tot_num_interior_found = len(roots_interior_mull_final+roots_interior_all_subs)
+    if tot_num_interior_found != tot_num_interior_pred:
         warn |= handle_warning(warn_not_all_interior_fnd,log&log_all_warn,lvl_cnt)
-    roots_all = purge(roots_all+roots_interior_all_subs)
+    roots_all = purge(roots_all+roots_interior_all_subs,dist_thres)
 
 
-    roots_final,num_added_roots = finialise_roots(roots_all,x_cent,y_cent,
-                                                  width,height,conj_min_imag)
-    print_roots_rect_summary(warn,len(roots_final),num_added_roots,
-                             roots_near_boundary,I0,len(roots_interior_mull),
+    roots_final,conjs_added = correct_roots(roots_all,x_cent,y_cent,width,
+                                           height,conj_min_imag)
+    roots_new = get_unique(roots_final,roots_known,dist_thres)
+    print_roots_rect_summary(warn,len(roots_final),conjs_added,
+                             roots_near_boundary,I0,len(roots_interior_mull_unique),
                              len(roots_interior_all_subs),len(roots_known),
                              x_cent,y_cent,width,height,num_regions,lvl_cnt,
-                             log&log_summary)
+                             dist_thres,log&log_summary)
     print_roots(roots_near_boundary_all,roots_near_boundary,roots_subtracted,
                 roots_rough,roots_interior_mull_all,roots_interior_mull,
-                roots_interior_all_subs,roots_all,roots_final,lvl_cnt,log&log_debug)
-    return roots_final,warn,num_regions
+                roots_interior_mull_unique, roots_interior_all_subs,roots_all,
+                roots_final,roots_new,lvl_cnt,log&log_debug)
+    return roots_new,warn,num_regions

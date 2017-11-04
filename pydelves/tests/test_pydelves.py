@@ -115,7 +115,7 @@ def test_Poly_Roots(N, printRoots=False, printPolys=False, printParams=False, do
     width += 0.1
     height += 0.1
 
-    N = 100
+    N = 10
     outlier_coeff = 100.
     max_steps = 5
     mul_tol = 1e-12
@@ -154,10 +154,10 @@ def test_Poly_Roots(N, printRoots=False, printPolys=False, printParams=False, do
         ret = Roots.get_roots_rect(f,fp,x_cent,y_cent,width,height,N,
                                    outlier_coeff,max_steps,mul_tol,mul_N,
                                    mul_off,max_order,purge_eps,conj_min_imag,
-                                   #log=Roots.log_summary)
+                                   log=Roots.log_summary)
                                    #log=Roots.log_summary|Roots.log_recursive)
                                    #log=Roots.log_summary|Roots.log_debug)
-                                   log=Roots.log_summary|Roots.log_debug|Roots.log_recursive)
+                                   #log=Roots.log_summary|Roots.log_debug|Roots.log_recursive)
         roots_gil, warn, numregions = ret
         roots_gil = np.asarray(roots_gil)
         roots_gil = Roots.inside_boundary(roots_gil,x_cent,y_cent,width,height)
@@ -187,5 +187,5 @@ def test_Roots_3(printRoots=False, printPolys=False, printParams=False, doubleOn
 if __name__ == "__main__":
     #test_Roots_1()
     #test_Roots_2()
-    #test_Roots_3()
-    test_Poly_Roots(13, printRoots=False, printPolys=False, printParams=False, doubleOnWarning=False)
+    test_Roots_3()
+    #test_Poly_Roots(32, printRoots=False, printPolys=False, printParams=False, doubleOnWarning=False)
