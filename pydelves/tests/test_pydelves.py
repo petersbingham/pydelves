@@ -118,15 +118,17 @@ def test_Poly_Roots(N, printRoots=False, printPolys=False, printParams=False, do
     N = 10
     outlier_coeff = 100.
     max_steps = 5
+    max_order=10
+    
     mul_tol = 1e-12
     mul_N = 400
-    mul_off=1e-5
+    mul_off = 1e-5
     
-    max_order=10,
-    
-    purge_eps=1e-7
-    conj_min_imag=1e-8
-    #conj_min_imag=None
+    dist_eps = 1e-7
+    lmt_N = 10
+    lmt_eps = 1e-3
+    min_i = 1e-8
+    min_i = None
 
     if printPolys:
         print poly
@@ -152,8 +154,9 @@ def test_Poly_Roots(N, printRoots=False, printPolys=False, printParams=False, do
             print "mul_tol:" + str(mul_tol)
             print "mul_N:" + str(mul_N)
         ret = Roots.get_roots_rect(f,fp,x_cent,y_cent,width,height,N,
-                                   outlier_coeff,max_steps,mul_tol,mul_N,
-                                   mul_off,max_order,purge_eps,conj_min_imag,
+                                   outlier_coeff,max_steps,max_order,mul_tol,
+                                   mul_N,mul_off,dist_eps,lmt_N,lmt_eps,
+                                   min_i,
                                    log=Roots.log_summary)
                                    #log=Roots.log_summary|Roots.log_recursive)
                                    #log=Roots.log_summary|Roots.log_debug)
@@ -188,4 +191,4 @@ if __name__ == "__main__":
     #test_Roots_1()
     #test_Roots_2()
     test_Roots_3()
-    #test_Poly_Roots(32, printRoots=False, printPolys=False, printParams=False, doubleOnWarning=False)
+    #test_Poly_Roots(20, printRoots=False, printPolys=False, printParams=False, doubleOnWarning=False)
