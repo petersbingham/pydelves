@@ -1,4 +1,4 @@
-import gilroots as Roots
+import pydelves as Roots
 
 import numpy.testing as testing
 import numpy as np
@@ -55,7 +55,7 @@ def two_sets_almost_equal(S1,S2,eps=1e-7):
     return True
 
 
-def test_Roots_1():
+def test_Roots():
     '''
     Make a square of length just under 5*pi. Find the roots of sine.
     '''
@@ -64,37 +64,19 @@ def test_Roots_1():
     fp = lambda z: np.cos(z)
     x_cent = 0.
     y_cent = 0.
-    width = 5.*np.pi-1e-5
-    height = 5.*np.pi-1e-5
-
-    roots_gil, warn, numregions = Roots.get_roots_rect(f,fp,x_cent,y_cent,width,height,N)
-    roots = np.asarray(retRoots)
-    roots_inside_boundary = Roots.inside_boundary(roots,x_cent,y_cent,width,height)
-    print two_sets_almost_equal(np.asarray(roots_inside_boundary)/np.pi,
-        [-4.,-3.,-2.,-1.,-0.,1.,2.,3.,4.] )
-
-def test_Roots_2_fun(f, fp):
-    '''
-    Make a square of length just over 5*pi. Find the roots of sine.
-    '''
-    N=5000
-    x_cent = 0.
-    y_cent = 0.
     width = 5.*np.pi+1e-5
     height = 5.*np.pi+1e-5
 
-    roots_gil, warn, numregions = Roots.get_roots_rect(f,fp,x_cent,y_cent,width,height,N,summary=True)
-    roots = np.asarray(retRoots)
-    roots_inside_boundary = Roots.inside_boundary(roots,x_cent,y_cent,width,height)
-    print two_sets_almost_equal(np.asarray(roots_inside_boundary)/np.pi,
-        [-5.,-4.,-3.,-2.,-1.,-0.,1.,2.,3.,4.,5.] )
+    all_fnd,retroots = Roots.droots(f,fp,x_cent,y_cent,width,height,N)
+    roots = np.asarray(retroots)
+    print two_sets_almost_equal(roots/np.pi,
+                                [-5.,-4.,-3.,-2.,-1.,-0.,1.,2.,3.,4.,5.] )
 
-def test_Roots_2():
-    f = lambda z: np.sin(z)
-    fp = lambda z: np.cos(z)
-    test_Roots_2_fun(f, fp)
 
-def test_Poly_Roots(N, printRoots=False, printPolys=False, printParams=False, doubleOnWarning=False):
+def test_Poly_Roots_N(N, printRoots=False, printPolys=False, printParams=False, doubleOnWarning=False):
+    '''
+    Find roots of polynomials with increasing powers. Compares with roots returned from np.roots.
+    '''
     print "\nN=" + str(N)
 
     coeff = []
@@ -105,7 +87,7 @@ def test_Poly_Roots(N, printRoots=False, printPolys=False, printParams=False, do
 
     poly = np.poly1d(coeff)
     poly_diff = np.polyder(poly)
-    
+
     f = lambda z: poly(z)
     fp = lambda z: poly_diff(z)
     width = (bnds[0][1]-bnds[0][0])/2.
@@ -115,80 +97,74 @@ def test_Poly_Roots(N, printRoots=False, printPolys=False, printParams=False, do
     width += 0.1
     height += 0.1
 
-    N = 10
+    N = 20
     outlier_coeff = 100.
     max_steps = 5
-    max_order=10
-    
-    mul_tol = 1e-12
+    max_order = 10
+
+    mul_ltol = 1e-12
+    mul_htol = 1e-12
     mul_N = 400
     mul_off = 1e-5
-    
+
     dist_eps = 1e-7
     lmt_N = 10
     lmt_eps = 1e-3
+    I0_tol = 5e-3
+ 
     min_i = 1e-8
-    min_i = None
+ 
+    #mode = Roots.mode_default    
+    mode = Roots.mode_log_summary
+    #mode = Roots.mode_log_summary|Roots.mode_log_notes
+    #mode = Roots.mode_log_summary|Roots.mode_log_recursive|Roots.mode_log_notes
+    #mode = Roots.mode_log_summary|Roots.mode_log_debug
+    #mode = Roots.mode_log_summary|Roots.mode_log_notes|Roots.mode_log_debug|Roots.mode_log_recursive
 
     if printPolys:
         print poly
         print poly_diff
 
-    ret = -1
-    while ret==-1 or (doubleOnWarning and ret!=0):
-        # Doubling is for test purposes.
-        if ret & Roots.warn_imprecise_roots:
-            N *= 2
-        elif ret & Roots.warn_max_steps_exceeded:
-            max_steps *= 2
-        elif ret & Roots.warn_no_muller_root:
-            mul_N *= 2
-        if printParams:
-            print "x_cent:" + str(x_cent)
-            print "y_cent:" + str(y_cent)
-            print "width:" + str(width)
-            print "height:" + str(height)
-            print "N:" + str(N)
-            print "outlier_coeff:" + str(outlier_coeff)
-            print "max_steps:" + str(max_steps)
-            print "mul_tol:" + str(mul_tol)
-            print "mul_N:" + str(mul_N)
-        ret = Roots.get_roots_rect(f,fp,x_cent,y_cent,width,height,N,
-                                   outlier_coeff,max_steps,max_order,mul_tol,
-                                   mul_N,mul_off,dist_eps,lmt_N,lmt_eps,
-                                   min_i,
-                                   log=Roots.log_summary)
-                                   #log=Roots.log_summary|Roots.log_recursive)
-                                   #log=Roots.log_summary|Roots.log_debug)
-                                   #log=Roots.log_summary|Roots.log_debug|Roots.log_recursive)
-        roots_gil, warn, numregions = ret
-        roots_gil = np.asarray(roots_gil)
-        roots_gil = Roots.inside_boundary(roots_gil,x_cent,y_cent,width,height)
+    if printParams:
+        print "x_cent:" + str(x_cent)
+        print "y_cent:" + str(y_cent)
+        print "width:" + str(width)
+        print "height:" + str(height)
+        print "N:" + str(N)
+        print "outlier_coeff:" + str(outlier_coeff)
+        print "max_steps:" + str(max_steps)
+        print "mul_ltol:" + str(mul_ltol)
+        print "mul_htol:" + str(mul_htol)
+        print "mul_N:" + str(mul_N)
+    
+    all_fnd,roots=Roots.droots(f,fp,x_cent,y_cent,width,height,N,outlier_coeff,
+                               max_steps,max_order,mul_N,mul_ltol,mul_htol,
+                               mul_off,dist_eps,lmt_N,lmt_eps,I0_tol,mode,min_i)
+    print "All found" if all_fnd else "Not all roots found"
 
-        print "\nComparison with numpy:"
-        print "\t" + str(len(roots_numpy)) + " numpy roots"
-        print "\t" + str(len(roots_gil)) + " gil roots"
-        common = 0
-        for root_numpy in roots_numpy:
-            for root_gil in roots_gil:
-                if almost_equal(root_numpy, root_gil,eps=1e-5):
-                    common += 1
-                    break
-        print "\t" + str(common) + " common roots"
+    print "Comparison with numpy:"
+    print "\t" + str(len(roots_numpy)) + " numpy roots"
+    print "\t" + str(len(roots)) + " gil roots"
+    common = 0
+    for root_numpy in roots_numpy:
+        for root_gil in roots:
+            if almost_equal(root_numpy, root_gil,eps=1e-5):
+                common += 1
+                break
+    print "\t" + str(common) + " common roots"
 
-        if printRoots:
-            for root in sorted(roots_numpy):
-              print str(root) + "  \t" + str(f(root))
-            print
-            for root in sorted(roots_gil):
-              print str(root) + "  \t" + str(f(root))
+    if printRoots:
+        for root in sorted(roots_numpy):
+          print str(root) + "  \t" + str(f(root))
+        print
+        for root in sorted(roots):
+          print str(root) + "  \t" + str(f(root))
 
-def test_Roots_3(printRoots=False, printPolys=False, printParams=False, doubleOnWarning=False):
+def test_Poly_Roots(printRoots=False, printPolys=False, printParams=False):
     for N in range(2,41):
-        test_Poly_Roots(N,printRoots,printPolys,printParams,doubleOnWarning)
+        test_Poly_Roots_N(N,printRoots,printPolys,printParams)
 
 if __name__ == "__main__":
-    #test_Roots_1()
-    #test_Roots_2()
-    test_Roots_3()
-    #test_Poly_Roots(20, printRoots=False, printPolys=False, printParams=False, doubleOnWarning=False)
+    #test_Roots()
+    test_Poly_Roots()
+    #test_Poly_Roots_N(5, printRoots=True, printPolys=False, printParams=False)
