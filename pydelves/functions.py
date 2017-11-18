@@ -46,7 +46,7 @@ def muller(x1,x2,x3,f,N=400,ltol=1e-12,htol=1e-12):
     if x1 == x3:
         raise Exception("Muller needs x1 and x3 different!!!")
 
-    while n < N and abs(f(x3))>ltol:
+    while n < N and (ltol is None or abs(f(x3))>ltol):
         n+=1
         q = (x3 - x2) / (x2 - x1)
         A = q * f(x3) - q*(1.+q)*f(x2)+q**2.*f(x1)
@@ -69,7 +69,7 @@ def muller(x1,x2,x3,f,N=400,ltol=1e-12,htol=1e-12):
         x3 = x
         #print x
 
-    return x, abs(f(x))<=htol
+    return x, (htol is None or abs(f(x))<=htol)
 
 def residues(f_frac,roots,lmt_N=10,lmt_eps=1e-3):
     '''

@@ -110,16 +110,16 @@ def test_Poly_Roots_N(N, printRoots=False, printPolys=False, printParams=False, 
     dist_eps = 1e-7
     lmt_N = 10
     lmt_eps = 1e-3
+    bnd_thres = 2.
+    conj_min_i = 1e-8
     I0_tol = 5e-3
- 
-    min_i = 1e-8
- 
-    #mode = Roots.mode_default    
+
+    #mode = Roots.mode_off    
     mode = Roots.mode_log_summary
     #mode = Roots.mode_log_summary|Roots.mode_log_notes
     #mode = Roots.mode_log_summary|Roots.mode_log_recursive|Roots.mode_log_notes
     #mode = Roots.mode_log_summary|Roots.mode_log_debug
-    #mode = Roots.mode_log_summary|Roots.mode_log_notes|Roots.mode_log_debug|Roots.mode_log_recursive
+    #mode = Roots.mode_log_summary|Roots.mode_log_notes|Roots.mode_log_debug|Roots.mode_log_recursive|Roots.mode_log_all_notes
 
     if printPolys:
         print poly
@@ -133,14 +133,24 @@ def test_Poly_Roots_N(N, printRoots=False, printPolys=False, printParams=False, 
         print "N:" + str(N)
         print "outlier_coeff:" + str(outlier_coeff)
         print "max_steps:" + str(max_steps)
+        print "max_order:" + str(max_order)
         print "mul_ltol:" + str(mul_ltol)
         print "mul_htol:" + str(mul_htol)
         print "mul_N:" + str(mul_N)
-    
-    all_fnd,roots=Roots.droots(f,fp,x_cent,y_cent,width,height,N,outlier_coeff,
-                               max_steps,max_order,mul_N,mul_ltol,mul_htol,
-                               mul_off,dist_eps,lmt_N,lmt_eps,I0_tol,mode,min_i)
-    print "All found" if all_fnd else "Not all roots found"
+        print "mul_off:" + str(mul_off)
+        print "dist_eps:" + str(dist_eps)
+        print "lmt_N:" + str(lmt_N)
+        print "lmt_eps:" + str(lmt_eps)
+        print "bnd_thres:" + str(bnd_thres)
+        print "conj_min_i:" + str(conj_min_i)
+        print "I0_tol:" + str(I0_tol)
+
+    Roots.set_delves_routine_parameters(outlier_coeff,max_order,I0_tol)
+    Roots.set_muller_parameters(mul_N,mul_ltol,mul_htol,mul_off)
+    Roots.set_mode_parameters(conj_min_i)
+    Roots.set_advanced_parameters(dist_eps,lmt_N,lmt_eps,bnd_thres)
+    all_fnd,roots=Roots.droots(f,fp,x_cent,y_cent,width,height,N,max_steps,mode)
+    print "Ret good" if all_fnd else "Ret bad"
 
     print "Comparison with numpy:"
     print "\t" + str(len(roots_numpy)) + " numpy roots"
@@ -167,4 +177,4 @@ def test_Poly_Roots(printRoots=False, printPolys=False, printParams=False):
 if __name__ == "__main__":
     #test_Roots()
     test_Poly_Roots()
-    #test_Poly_Roots_N(5, printRoots=True, printPolys=False, printParams=False)
+    #test_Poly_Roots_N(18, printRoots=False, printPolys=False, printParams=False)
