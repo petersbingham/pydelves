@@ -1,4 +1,4 @@
-import pydelves as Roots
+from pydelves import *
 
 import numpy.testing as testing
 import numpy as np
@@ -67,7 +67,7 @@ def test_Roots():
     width = 5.*np.pi+1e-5
     height = 5.*np.pi+1e-5
 
-    all_fnd,retroots = Roots.droots(f,fp,x_cent,y_cent,width,height,N)
+    all_fnd,retroots = droots(f,fp,x_cent,y_cent,width,height,N)
     roots = np.asarray(retroots)
     print two_sets_almost_equal(roots/np.pi,
                                 [-5.,-4.,-3.,-2.,-1.,-0.,1.,2.,3.,4.,5.] )
@@ -98,28 +98,35 @@ def test_Poly_Roots_N(N, printRoots=False, printPolys=False, printParams=False, 
     height += 0.1
 
     N = 20
-    outlier_coeff = 100.
     max_steps = 5
+    
+    outlier_coeff = 100.
     max_order = 10
+    I0_tol = 5e-3
 
-    mul_ltol = 1e-12
-    mul_htol = 1e-12
     mul_N = 400
+    mul_fzltol = 1e-12
+    mul_fzhtol = 1e-12
     mul_off = 1e-5
+
+    mul_ztol = 1e-4
+    conj_min_i = 1e-8
 
     dist_eps = 1e-7
     lmt_N = 10
     lmt_eps = 1e-3
     bnd_thres = 2.
-    conj_min_i = 1e-8
-    I0_tol = 5e-3
 
-    #mode = Roots.mode_off    
-    mode = Roots.mode_log_summary
-    #mode = Roots.mode_log_summary|Roots.mode_log_notes
-    #mode = Roots.mode_log_summary|Roots.mode_log_recursive|Roots.mode_log_notes
-    #mode = Roots.mode_log_summary|Roots.mode_log_debug
-    #mode = Roots.mode_log_summary|Roots.mode_log_notes|Roots.mode_log_debug|Roots.mode_log_recursive|Roots.mode_log_all_notes
+    #logmode = mode_off    
+    logmode = mode_log_summary
+    #logmode = mode_log_summary|mode_log_recursive
+    #logmode = mode_log_summary|mode_log_debug|mode_log_recursive
+    #logmode = mode_log_summary|mode_log_debug|mode_log_verbose|mode_log_recursive
+
+    #calcmode = mode_off
+    calcmode = mode_accept_int_muller_close_to_good_roche
+
+    mode = logmode | calcmode
 
     if printPolys:
         print poly
@@ -134,8 +141,8 @@ def test_Poly_Roots_N(N, printRoots=False, printPolys=False, printParams=False, 
         print "outlier_coeff:" + str(outlier_coeff)
         print "max_steps:" + str(max_steps)
         print "max_order:" + str(max_order)
-        print "mul_ltol:" + str(mul_ltol)
-        print "mul_htol:" + str(mul_htol)
+        print "mul_fzltol:" + str(mul_fzltol)
+        print "mul_fzhtol:" + str(mul_fzhtol)
         print "mul_N:" + str(mul_N)
         print "mul_off:" + str(mul_off)
         print "dist_eps:" + str(dist_eps)
@@ -145,12 +152,12 @@ def test_Poly_Roots_N(N, printRoots=False, printPolys=False, printParams=False, 
         print "conj_min_i:" + str(conj_min_i)
         print "I0_tol:" + str(I0_tol)
 
-    Roots.set_delves_routine_parameters(outlier_coeff,max_order,I0_tol)
-    Roots.set_muller_parameters(mul_N,mul_ltol,mul_htol,mul_off)
-    Roots.set_mode_parameters(conj_min_i)
-    Roots.set_advanced_parameters(dist_eps,lmt_N,lmt_eps,bnd_thres)
-    all_fnd,roots=Roots.droots(f,fp,x_cent,y_cent,width,height,N,max_steps,mode)
-    print "Ret good" if all_fnd else "Ret bad"
+    set_delves_routine_parameters(outlier_coeff,max_order,I0_tol)
+    set_muller_parameters(mul_N,mul_fzltol,mul_fzhtol,mul_off)
+    set_mode_parameters(mul_ztol,conj_min_i)
+    set_advanced_parameters(dist_eps,lmt_N,lmt_eps,bnd_thres)
+    state,roots=droots(f,fp,x_cent,y_cent,width,height,N,max_steps,mode)
+    print "warn: " + str(state & 0x7)
 
     print "Comparison with numpy:"
     print "\t" + str(len(roots_numpy)) + " numpy roots"
@@ -177,4 +184,4 @@ def test_Poly_Roots(printRoots=False, printPolys=False, printParams=False):
 if __name__ == "__main__":
     #test_Roots()
     test_Poly_Roots()
-    #test_Poly_Roots_N(18, printRoots=False, printPolys=False, printParams=False)
+    #test_Poly_Roots_N(21, printRoots=False, printPolys=False, printParams=False)
