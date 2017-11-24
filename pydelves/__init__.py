@@ -77,7 +77,7 @@ note_muller_exception = 0x80
 note_root_sub_div_by_zero = 0x100
 
 #Used for switching out notes from warnings:
-mode_warn_switch = 0xF
+mode_warn_switch = 0x7
 
 def root_purge(lst,eps=1e-7,conj_min_i=1e-8):
     if len(lst) == 0:
@@ -303,8 +303,8 @@ class root_container:
         self.boundary_outliers = []
         for i in outlier_indices:
             self.boundary_outliers.append(b.c[i]/2)
-            status |= locate_muller_root(lp,b.c[i-2],b.c[i+2],
-                                        b.c[i]/2,self.boundary_passed_fz,
+            status |= locate_muller_root(lp,b.c[i-1],b.c[i+1],
+                                        b.c[i],self.boundary_passed_fz,
                                         self.boundary_failed_fz)
         status |= check_against_bnd_start_roots(lp,self.boundary_failed_fz,
                                                self.boundary_passed_z)
