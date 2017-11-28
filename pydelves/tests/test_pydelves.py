@@ -1,4 +1,4 @@
-from pydelves import *
+from gilroots import *
 
 import numpy.testing as testing
 import numpy as np
@@ -73,6 +73,129 @@ def test_Roots():
                                 [-5.,-4.,-3.,-2.,-1.,-0.,1.,2.,3.,4.,5.] )
 
 
+def _print_params(x_cent,y_cent,width,height,N,outlier_coeff,max_steps,
+                  max_order,mul_fzltol,mul_fzhtol,mul_N,mul_off,dist_eps,
+                  lmt_N,lmt_eps,bnd_thres,conj_min_i,I0_tol):
+    print "x_cent:" + str(x_cent)
+    print "y_cent:" + str(y_cent)
+    print "width:" + str(width)
+    print "height:" + str(height)
+    print "N:" + str(N)
+    print "outlier_coeff:" + str(outlier_coeff)
+    print "max_steps:" + str(max_steps)
+    print "max_order:" + str(max_order)
+    print "mul_fzltol:" + str(mul_fzltol)
+    print "mul_fzhtol:" + str(mul_fzhtol)
+    print "mul_N:" + str(mul_N)
+    print "mul_off:" + str(mul_off)
+    print "dist_eps:" + str(dist_eps)
+    print "lmt_N:" + str(lmt_N)
+    print "lmt_eps:" + str(lmt_eps)
+    print "bnd_thres:" + str(bnd_thres)
+    print "conj_min_i:" + str(conj_min_i)
+    print "I0_tol:" + str(I0_tol)    
+
+def truncateFloat(dps, val):
+    return float(("{0:."+str(dps)+"f}").format(val))
+def truncateComplex(dps, val):
+    return truncateFloat(dps,val.real) + truncateFloat(dps,val.imag)*1.0j
+
+def test_Wilkinson(printRoots=False, printPolys=False, printParams=False, 
+                   doubleOnWarning=False):
+    '''
+    Find roots of wilkonson polynomial. 
+    '''
+    def f(x):
+        val = 1
+        for i in range(1,21):
+            val *= (x-i)
+        #return truncateComplex(21,val)
+        return val
+
+    def fp(x):
+        val = 20.*x**19.-\
+        3990.*x**18.+\
+        371070.*x**17.-\
+        21366450.*x**16.+\
+        853247136.*x**15.-\
+        25084212300.*x**14.+\
+        562404802820.*x**13.-\
+        9829445398500.*x**12.+\
+        135723323944572.*x**11.-\
+        1491437011894830.*x**10.+\
+        13075350105403950.*x**9.-\
+        91280698789603050.*x**8.+\
+        504246496794359168.*x**7.-\
+        2179335502129734480.*x**6.+\
+        7239886822682240160.*x**5.-\
+        17999897589738036000.*x**4.+\
+        32151247290580207104.*x**3.-\
+        38612793735452966400.*x**2.+\
+        27607519507281408000.*x-\
+        8752948036761600000.
+        #return truncateComplex(21,val)
+        return val
+
+    import sys
+    sys.setrecursionlimit(10000)
+
+    width = 12.
+    height = 4.
+    x_cent = 10
+    y_cent = 0
+
+    N = 100
+    max_steps = 5
+    
+    outlier_coeff = 100.
+    max_order = 10
+    I0_tol = 5e-3
+
+    mul_N = 400
+    mul_fzltol = 1e-12
+    mul_fzhtol = 1e-12
+    mul_off = 1e-5
+
+    mul_ztol = 1e-3
+    conj_min_i = 1e-8
+
+    dist_eps = 1e-7
+    lmt_N = 10
+    lmt_eps = 1e-3
+    bnd_thres = .1
+
+    logmode = mode_off    
+    logmode |= mode_log_summary
+    #logmode |= mode_log_recursive
+    #logmode |= mode_log_debug
+    #logmode |= mode_log_verbose
+
+    calcmode = mode_off
+    calcmode |= mode_recurse_on_inaccurate_roche | mode_recurse_on_not_all_interior_found
+    #calcmode |= mode_accept_int_muller_close_to_good_roche | mode_use_stripped_subtraction
+
+    mode = logmode | calcmode
+
+    if printPolys:
+        print poly
+        print poly_diff
+
+    if printParams:
+        print_params(x_cent,y_cent,width,height,N,outlier_coeff,max_steps,
+                     max_order,mul_fzltol,mul_fzhtol,mul_N,mul_off,dist_eps,
+                     lmt_N,lmt_eps,bnd_thres,conj_min_i,I0_tol)
+
+    set_delves_routine_parameters(outlier_coeff,max_order,I0_tol)
+    set_muller_parameters(mul_N,mul_fzltol,mul_fzhtol,mul_off)
+    set_mode_parameters(mul_ztol,conj_min_i)
+    set_advanced_parameters(dist_eps,lmt_N,lmt_eps,bnd_thres)
+    state,roots=droots(f,fp,x_cent,y_cent,width,height,N,max_steps,mode)
+    print "warn: " + str(state & 0x7)
+
+    if printRoots:
+        for root in sorted(roots):
+          print str(root) + "  \t" + str(f(root))
+
 def test_Poly_Roots_N(N, printRoots=False, printPolys=False, printParams=False, doubleOnWarning=False):
     '''
     Find roots of polynomials with increasing powers. Compares with roots returned from np.roots.
@@ -97,7 +220,7 @@ def test_Poly_Roots_N(N, printRoots=False, printPolys=False, printParams=False, 
     width += 0.1
     height += 0.1
 
-    N = 20
+    N = 1000
     max_steps = 5
     
     outlier_coeff = 100.
@@ -109,22 +232,23 @@ def test_Poly_Roots_N(N, printRoots=False, printPolys=False, printParams=False, 
     mul_fzhtol = 1e-12
     mul_off = 1e-5
 
-    mul_ztol = 1e-4
+    mul_ztol = 1e-3
     conj_min_i = 1e-8
 
     dist_eps = 1e-7
     lmt_N = 10
     lmt_eps = 1e-3
-    bnd_thres = 2.
+    bnd_thres = .1
 
-    #logmode = mode_off    
-    logmode = mode_log_summary
-    #logmode = mode_log_summary|mode_log_recursive
-    #logmode = mode_log_summary|mode_log_debug|mode_log_recursive
-    #logmode = mode_log_summary|mode_log_debug|mode_log_verbose|mode_log_recursive
+    logmode = mode_off    
+    logmode |= mode_log_summary
+    #logmode |= mode_log_recursive
+    #logmode |= mode_log_debug
+    #logmode |= mode_log_verbose
 
-    #calcmode = mode_off
-    calcmode = mode_accept_int_muller_close_to_good_roche
+    calcmode = mode_off
+    calcmode |= mode_recurse_on_inaccurate_roche | mode_recurse_on_not_all_interior_found
+    #calcmode |= mode_accept_int_muller_close_to_good_roche | mode_use_stripped_subtraction
 
     mode = logmode | calcmode
 
@@ -133,24 +257,9 @@ def test_Poly_Roots_N(N, printRoots=False, printPolys=False, printParams=False, 
         print poly_diff
 
     if printParams:
-        print "x_cent:" + str(x_cent)
-        print "y_cent:" + str(y_cent)
-        print "width:" + str(width)
-        print "height:" + str(height)
-        print "N:" + str(N)
-        print "outlier_coeff:" + str(outlier_coeff)
-        print "max_steps:" + str(max_steps)
-        print "max_order:" + str(max_order)
-        print "mul_fzltol:" + str(mul_fzltol)
-        print "mul_fzhtol:" + str(mul_fzhtol)
-        print "mul_N:" + str(mul_N)
-        print "mul_off:" + str(mul_off)
-        print "dist_eps:" + str(dist_eps)
-        print "lmt_N:" + str(lmt_N)
-        print "lmt_eps:" + str(lmt_eps)
-        print "bnd_thres:" + str(bnd_thres)
-        print "conj_min_i:" + str(conj_min_i)
-        print "I0_tol:" + str(I0_tol)
+        print_params(x_cent,y_cent,width,height,N,outlier_coeff,max_steps,
+                     max_order,mul_fzltol,mul_fzhtol,mul_N,mul_off,dist_eps,
+                     lmt_N,lmt_eps,bnd_thres,conj_min_i,I0_tol)
 
     set_delves_routine_parameters(outlier_coeff,max_order,I0_tol)
     set_muller_parameters(mul_N,mul_fzltol,mul_fzhtol,mul_off)
@@ -183,5 +292,6 @@ def test_Poly_Roots(printRoots=False, printPolys=False, printParams=False):
 
 if __name__ == "__main__":
     #test_Roots()
-    test_Poly_Roots()
-    #test_Poly_Roots_N(21, printRoots=False, printPolys=False, printParams=False)
+    #test_Poly_Roots()
+    test_Poly_Roots_N(31, printRoots=False, printPolys=False, printParams=False)
+    #test_Wilkinson(printRoots=True, printPolys=False, printParams=False)

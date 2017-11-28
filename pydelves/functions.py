@@ -257,7 +257,7 @@ def linspace(c1,c2,num=50):
     return [real+imag*1j for real,imag in zip(np.linspace(x1,x2,num=num),
                                               np.linspace(y1,y2,num=num)) ]
 
-def get_boundary(rx,ry,rw,rh,N):
+def get_boundary(N,rx,ry,rw,rh):
     '''
     Make a rectangle centered at rx,ry. Find points along this rectangle.
     I use the convention that rw/rh make up half the dimensions of the rectangle.
@@ -282,13 +282,13 @@ def get_boundary(rx,ry,rw,rh,N):
             linspace(c4,c1,num=N)
 
 
-def inside_boundary(roots_near_boundary,rx,ry,rw,rh):
+def inside_boundary(roots,rx,ry,rw,rh):
     '''
     Takes roots and the specification of a rectangular region
     returns the roots in the interior (and ON the boundary) of the region.
 
     Args:
-        roots_near_boundary (list of complex numbers): roots near the boundary.
+        roots (list of complex numbers): roots near the boundary.
 
         rx,ry (floats): coordinates of the center of the region.
 
@@ -297,14 +297,34 @@ def inside_boundary(roots_near_boundary,rx,ry,rw,rh):
     Returns:
         Roots in the interior and on the boundary of the rectangle.
     '''
-    return [root for root in roots_near_boundary if
+    return [root for root in roots if
             rx - rw <= root.real <= rx + rw and \
             ry - rh <= root.imag <= ry + rh]
 
+
+def outside_boundary(roots,rx,ry,rw,rh):
+    '''
+    Takes roots and the specification of a rectangular region
+    returns the roots in the exterior (and NOT ON the boundary) of the region.
+
+    Args:
+        roots (list of complex numbers): roots near the boundary.
+
+        rx,ry (floats): coordinates of the center of the region.
+
+        rw,rh (floats): The (half) width and height of the rectangle.
+
+    Returns:
+        Roots in the exterior and not on the boundary of the rectangle.
+    '''
+    return [root for root in roots if
+            rx - rw > root.real > rx + rw and \
+            ry - rh > root.imag > ry + rh]
+
 def get_max(y):
     '''
-    return the :math:`IQR + median` to determine a maximum permissible value to use
-    in the numerically safe function new_f_frac_safe.
+    return the :math:`IQR + median` to determine a maximum permissible value
+    to use in the numerically safe function new_f_frac_safe.
 
     '''
     q75, q50, q25 = np.percentile(y, [75 , 50, 25])
