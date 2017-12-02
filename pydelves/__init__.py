@@ -4,7 +4,7 @@ Created on Sat Feb 28 20:15:35 2015
 
 @author: gil
 @title: Rootfinder
-Modified by P Bingham October-November 2017
+Modified by P Bingham October-December 2017
 
 Find the roots of a function f in the complex plane inside of a rectangular region.
 We implement the method in the following paper:
@@ -36,7 +36,7 @@ mode_off = 0
 #Since muller uses f(x)<tol then if differential is very high small displacement
 #from root can give much large f(x). Since we know the rough value of the roche
 #root we can compare to that instead (or as well). Two options here. If the 
-#good_roche variant is selected then will only accpet if the routine had a good
+#good_roche variant is selected then will only accept if the routine had a good
 #I0.
 mode_accept_int_muller_close_to_good_roche = 0x1
 mode_accept_int_muller_close_to_any_roche = 0x2
@@ -45,7 +45,7 @@ mode_accept_int_muller_close_to_any_roche = 0x2
 #keep the following mode off and use mode_use_stripped_subtraction instead.
 mode_accept_bnd_muller_close_to_start = 0x4
 #Or the following option to accept all mullers, without any check. Good when
-#roots can be missing and and external check is applied.
+#roots can be missing and and some external check is applied.
 mode_accept_all_mullers = 0x8
 
 #Due to tendency to wander it's harder to verify the boundary roots. The 
@@ -59,8 +59,8 @@ mode_use_stripped_subtraction = 0x10
 #Recursion is expensive. If the routine is selected to not recurse on either of
 #the two conditions below then a warning will be returned from the routine, as
 #can't guarantee that all of the roots have been found.
-mode_recurse_on_inaccurate_roche = 0x20
-mode_recurse_on_not_all_interior_found = 0x40
+mode_dont_recurse_on_inaccurate_roche = 0x20
+mode_dont_recurse_on_not_all_interior_found = 0x40
 
 #If function is a polynomial with real coefficients then roots will occur in 
 #a+ib, a-ib pairs. If mode==mode_add_conjs then routine will take advantage of 
@@ -89,6 +89,23 @@ note_root_sub_div_by_zero = 0x100
 
 #Used for switching out notes from warnings:
 mode_warn_switch = 0x7
+
+default_N = 500 
+default_max_steps = 5
+default_mode = mode_off 
+default_outlier_coeff = 100.
+default_max_order = 10
+default_I0_tol = 5e-3
+default_mul_N = 400
+default_mul_fzltol = 1e-12
+default_mul_fzhtol = 1e-12
+default_mul_off = 1e-5
+default_mul_ztol = 1e-4
+default_conj_min_i = 1e-8
+default_dist_eps = 1e-7
+default_lmt_N = 10
+default_lmt_eps = 1e-3
+default_bnd_thres = 2.
 
 def root_purge(lst,eps=1e-7,conj_min_i=1e-8):
     if len(lst) == 0:
@@ -356,7 +373,8 @@ class root_container:
 
     def is_polysolve_required(self,lp,I0,num_pred_roots):
         roche_accurate = gp.is_roche_accurate(I0)
-        if not roche_accurate and lp.mode & mode_recurse_on_inaccurate_roche:
+        if not roche_accurate and\
+           not lp.mode & mode_dont_recurse_on_inaccurate_roche:
             return False
         return num_pred_roots <= gp.max_order and num_pred_roots >= 1
 
@@ -493,9 +511,11 @@ def do_subcalculation(lp,roots,I0,num_pred_roots):
     ret = False
     if num_pred_roots>gp.max_order:
         ret = True
-    if not roche_accurate and lp.mode & mode_recurse_on_inaccurate_roche:
+    if not roche_accurate and\
+       not lp.mode & mode_dont_recurse_on_inaccurate_roche:
         ret = True
-    if not all_int_fnd and lp.mode & mode_recurse_on_not_all_interior_found:
+    if not all_int_fnd and\
+       not lp.mode & mode_dont_recurse_on_not_all_interior_found:
         ret = True
     return ret and lp.max_steps!=0
 
@@ -524,23 +544,23 @@ class global_parameters:
         self.f = None
         self.fp = None
 
-        self.N = 10
-        self.outlier_coeff = 100.
-        self.max_order = 10
-        self.I0_tol = 5e-3
+        self.N = default_N
+        self.outlier_coeff = default_outlier_coeff
+        self.max_order = default_max_order
+        self.I0_tol = default_I0_tol
 
-        self.mul_N = 400
-        self.mul_fzltol = 1e-12
-        self.mul_fzhtol = 1e-12
-        self.mul_off = 1e-5
+        self.mul_N = default_mul_N
+        self.mul_fzltol = default_mul_fzltol
+        self.mul_fzhtol = default_mul_fzhtol
+        self.mul_off = default_mul_off
 
-        self.conj_min_i = 1e-8
-        self.mul_ztol = 1e-4
+        self.conj_min_i = default_conj_min_i
+        self.mul_ztol = default_mul_ztol
 
-        self.dist_eps = 1e-7
-        self.lmt_N = 10
-        self.lmt_eps = 1e-3
-        self.bnd_thres = 2.
+        self.dist_eps = default_dist_eps
+        self.lmt_N = default_lmt_N
+        self.lmt_eps = default_lmt_eps
+        self.bnd_thres = default_bnd_thres
 
     def set_delves_routine_parameters(self,outlier_coeff,max_order,I0_tol):
         self.outlier_coeff = outlier_coeff
@@ -605,7 +625,9 @@ class local_parameters:
 
 gp = global_parameters()
 
-def set_delves_routine_parameters(outlier_coeff=100.,max_order=10,I0_tol=5e-3):
+def set_delves_routine_parameters(outlier_coeff=default_outlier_coeff,
+                                  max_order=default_max_order,
+                                  I0_tol=default_I0_tol):
     '''
     Set primary routine arguments
 
@@ -625,7 +647,9 @@ def set_delves_routine_parameters(outlier_coeff=100.,max_order=10,I0_tol=5e-3):
     '''
     gp.set_delves_routine_parameters(outlier_coeff,max_order,I0_tol)
 
-def set_muller_parameters(mul_N=400,mul_fzltol=1e-12,mul_fzhtol=1e-12,mul_off=1e-5):
+def set_muller_parameters(mul_N=default_mul_N,mul_fzltol=default_mul_fzltol,
+                          mul_fzhtol=default_mul_fzhtol,
+                          mul_off=default_mul_off):
     '''
     Set arguments related to the muller routine
 
@@ -641,7 +665,8 @@ def set_muller_parameters(mul_N=400,mul_fzltol=1e-12,mul_fzhtol=1e-12,mul_off=1e
     '''
     gp.set_muller_parameters(mul_N,mul_fzltol,mul_fzhtol,mul_off)
 
-def set_mode_parameters(mul_ztol=1e-4,conj_min_i=1e-8):
+def set_mode_parameters(mul_ztol=default_mul_ztol,
+                        conj_min_i=default_conj_min_i):
     '''
     These parameters are only relevant if the related mode is set.
 
@@ -662,7 +687,9 @@ def set_mode_parameters(mul_ztol=1e-4,conj_min_i=1e-8):
     '''
     gp.set_mode_parameters(mul_ztol, conj_min_i)
     
-def set_advanced_parameters(dist_eps=1e-7,lmt_N=10,lmt_eps=1e-3,bnd_thres=2.):
+def set_advanced_parameters(dist_eps=default_dist_eps,lmt_N=default_lmt_N,
+                            lmt_eps=default_lmt_eps,
+                            bnd_thres=default_bnd_thres):
     '''
     Set advanced arguments
 
@@ -683,8 +710,8 @@ def set_advanced_parameters(dist_eps=1e-7,lmt_N=10,lmt_eps=1e-3,bnd_thres=2.):
     '''
     gp.set_advanced_parameters(dist_eps,lmt_N,lmt_eps,bnd_thres)
 
-def droots(f,fp,rx,ry,rw,rh,N=10,max_steps=5,mode=mode_off,
-           known_roots=[],lvl_cnt=0):
+def droots(f,fp,rx,ry,rw,rh,N=default_N,max_steps=default_max_steps,
+           mode=default_mode,known_roots=[],lvl_cnt=0):
     '''
     I assume f is analytic with simple (i.e. order one) zeros.
 
@@ -694,9 +721,11 @@ def droots(f,fp,rx,ry,rw,rh,N=10,max_steps=5,mode=mode_off,
 
     Args:
         f (function): the function for which the roots (i.e. zeros) will be
-            found.
+            found. It is highly recommended (especially if the f is expensive)
+            to cache values.
 
-        fp (function): the derivative of f.
+        fp (function): the derivative of f. It is highly recommended 
+            (especially if the fp is expensive) to cache values.
 
         rx,ry (floats): The center of the rectangle in the complex
             plane.

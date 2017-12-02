@@ -72,7 +72,6 @@ def test_Roots():
     print two_sets_almost_equal(roots/np.pi,
                                 [-5.,-4.,-3.,-2.,-1.,-0.,1.,2.,3.,4.,5.] )
 
-
 def _print_params(x_cent,y_cent,width,height,N,outlier_coeff,max_steps,
                   max_order,mul_fzltol,mul_fzhtol,mul_N,mul_off,dist_eps,
                   lmt_N,lmt_eps,bnd_thres,conj_min_i,I0_tol):
@@ -93,17 +92,67 @@ def _print_params(x_cent,y_cent,width,height,N,outlier_coeff,max_steps,
     print "lmt_eps:" + str(lmt_eps)
     print "bnd_thres:" + str(bnd_thres)
     print "conj_min_i:" + str(conj_min_i)
-    print "I0_tol:" + str(I0_tol)    
+    print "I0_tol:" + str(I0_tol)  
+
 
 def truncateFloat(dps, val):
     return float(("{0:."+str(dps)+"f}").format(val))
 def truncateComplex(dps, val):
     return truncateFloat(dps,val.real) + truncateFloat(dps,val.imag)*1.0j
 
-def test_Wilkinson(printRoots=False, printPolys=False, printParams=False, 
-                   doubleOnWarning=False):
+def _droots_wilk(f,fp,x_cent,y_cent,width,height,printPolys,printParams):
+    N = default_N
+    max_steps = default_max_steps
+    
+    outlier_coeff = default_outlier_coeff
+    max_order = default_max_order
+    I0_tol = default_I0_tol
+
+    mul_N = default_mul_N
+    mul_fzltol = default_mul_fzltol
+    mul_fzhtol = default_mul_fzhtol
+    mul_off = default_mul_off
+
+    mul_ztol = default_mul_ztol
+    conj_min_i = default_conj_min_i
+
+    dist_eps = default_dist_eps
+    lmt_N = default_lmt_N
+    lmt_eps = default_lmt_eps
+    bnd_thres = default_bnd_thres
+
+    logmode = mode_off    
+    #logmode |= mode_log_summary
+    #logmode |= mode_log_recursive
+    #logmode |= mode_log_debug
+    #logmode |= mode_log_verbose
+
+    calcmode = mode_off
+    #calcmode |= mode_dont_recurse_on_inaccurate_roche
+    #calcmode |= mode_dont_recurse_on_not_all_interior_found
+    #calcmode |= mode_accept_int_muller_close_to_good_roche
+    #calcmode |= mode_use_stripped_subtraction
+    mode = logmode | calcmode
+
+    if printPolys:
+        print poly
+        print poly_diff
+
+    if printParams:
+        print_params(x_cent,y_cent,width,height,N,outlier_coeff,max_steps,
+                     max_order,mul_fzltol,mul_fzhtol,mul_N,mul_off,dist_eps,
+                     lmt_N,lmt_eps,bnd_thres,conj_min_i,I0_tol)
+
+    set_delves_routine_parameters(outlier_coeff,max_order,I0_tol)
+    set_muller_parameters(mul_N,mul_fzltol,mul_fzhtol,mul_off)
+    set_mode_parameters(mul_ztol,conj_min_i)
+    set_advanced_parameters(dist_eps,lmt_N,lmt_eps,bnd_thres)
+    return droots(f,fp,x_cent,y_cent,width,height,N,max_steps,mode)
+
+
+def test_Wilkinson(printRoots=False, printPolys=False, printParams=False):
     '''
-    Find roots of wilkonson polynomial. 
+    Find roots of Wilkinson polynomial. 
     '''
     def f(x):
         val = 1
@@ -144,36 +193,48 @@ def test_Wilkinson(printRoots=False, printPolys=False, printParams=False,
     x_cent = 10
     y_cent = 0
 
-    N = 100
-    max_steps = 5
+    state,roots=_droots_wilk(f,fp,x_cent,y_cent,width,height,
+                             printPolys,printParams)
+    if printRoots:
+        for root in sorted(roots):
+          print str(root) + "  \t" + str(f(root))
+
+    if str(state & 0x7) != 0:
+        print "WARNING: " + str(state & 0x7)
+
+
+def _droots_poly(f,fp,x_cent,y_cent,width,height,printPolys,printParams):
+    N = default_N
+    max_steps = default_max_steps
     
-    outlier_coeff = 100.
-    max_order = 10
-    I0_tol = 5e-3
+    outlier_coeff = default_outlier_coeff
+    max_order = default_max_order
+    I0_tol = default_I0_tol
 
-    mul_N = 400
-    mul_fzltol = 1e-12
-    mul_fzhtol = 1e-12
-    mul_off = 1e-5
+    mul_N = default_mul_N
+    mul_fzltol = default_mul_fzltol
+    mul_fzhtol = default_mul_fzhtol
+    mul_off = default_mul_off
 
-    mul_ztol = 1e-3
-    conj_min_i = 1e-8
+    mul_ztol = default_mul_ztol
+    conj_min_i = default_conj_min_i
 
-    dist_eps = 1e-7
-    lmt_N = 10
-    lmt_eps = 1e-3
-    bnd_thres = .1
+    dist_eps = default_dist_eps
+    lmt_N = default_lmt_N
+    lmt_eps = default_lmt_eps
+    bnd_thres = default_bnd_thres
 
     logmode = mode_off    
-    logmode |= mode_log_summary
+    #logmode |= mode_log_summary
     #logmode |= mode_log_recursive
     #logmode |= mode_log_debug
     #logmode |= mode_log_verbose
 
     calcmode = mode_off
-    calcmode |= mode_recurse_on_inaccurate_roche | mode_recurse_on_not_all_interior_found
-    #calcmode |= mode_accept_int_muller_close_to_good_roche | mode_use_stripped_subtraction
-
+    #calcmode |= mode_dont_recurse_on_inaccurate_roche
+    #calcmode |= mode_dont_recurse_on_not_all_interior_found
+    #calcmode |= mode_accept_int_muller_close_to_good_roche
+    #calcmode |= mode_use_stripped_subtraction
     mode = logmode | calcmode
 
     if printPolys:
@@ -189,14 +250,9 @@ def test_Wilkinson(printRoots=False, printPolys=False, printParams=False,
     set_muller_parameters(mul_N,mul_fzltol,mul_fzhtol,mul_off)
     set_mode_parameters(mul_ztol,conj_min_i)
     set_advanced_parameters(dist_eps,lmt_N,lmt_eps,bnd_thres)
-    state,roots=droots(f,fp,x_cent,y_cent,width,height,N,max_steps,mode)
-    print "warn: " + str(state & 0x7)
+    return droots(f,fp,x_cent,y_cent,width,height,N,max_steps,mode)
 
-    if printRoots:
-        for root in sorted(roots):
-          print str(root) + "  \t" + str(f(root))
-
-def test_Poly_Roots_N(N, printRoots=False, printPolys=False, printParams=False, doubleOnWarning=False):
+def test_Poly_Roots_N(N, printRoots=False, printPolys=False, printParams=False):
     '''
     Find roots of polynomials with increasing powers. Compares with roots returned from np.roots.
     '''
@@ -220,53 +276,11 @@ def test_Poly_Roots_N(N, printRoots=False, printPolys=False, printParams=False, 
     width += 0.1
     height += 0.1
 
-    N = 1000
-    max_steps = 5
-    
-    outlier_coeff = 100.
-    max_order = 10
-    I0_tol = 5e-3
+    state,roots=_droots_poly(f,fp,x_cent,y_cent,width,height,
+                             printPolys,printParams)
 
-    mul_N = 400
-    mul_fzltol = 1e-12
-    mul_fzhtol = 1e-12
-    mul_off = 1e-5
-
-    mul_ztol = 1e-3
-    conj_min_i = 1e-8
-
-    dist_eps = 1e-7
-    lmt_N = 10
-    lmt_eps = 1e-3
-    bnd_thres = .1
-
-    logmode = mode_off    
-    logmode |= mode_log_summary
-    #logmode |= mode_log_recursive
-    #logmode |= mode_log_debug
-    #logmode |= mode_log_verbose
-
-    calcmode = mode_off
-    calcmode |= mode_recurse_on_inaccurate_roche | mode_recurse_on_not_all_interior_found
-    #calcmode |= mode_accept_int_muller_close_to_good_roche | mode_use_stripped_subtraction
-
-    mode = logmode | calcmode
-
-    if printPolys:
-        print poly
-        print poly_diff
-
-    if printParams:
-        print_params(x_cent,y_cent,width,height,N,outlier_coeff,max_steps,
-                     max_order,mul_fzltol,mul_fzhtol,mul_N,mul_off,dist_eps,
-                     lmt_N,lmt_eps,bnd_thres,conj_min_i,I0_tol)
-
-    set_delves_routine_parameters(outlier_coeff,max_order,I0_tol)
-    set_muller_parameters(mul_N,mul_fzltol,mul_fzhtol,mul_off)
-    set_mode_parameters(mul_ztol,conj_min_i)
-    set_advanced_parameters(dist_eps,lmt_N,lmt_eps,bnd_thres)
-    state,roots=droots(f,fp,x_cent,y_cent,width,height,N,max_steps,mode)
-    print "warn: " + str(state & 0x7)
+    if str(state & 0x7) != 0:
+        print "WARNING: " + str(state & 0x7)
 
     print "Comparison with numpy:"
     print "\t" + str(len(roots_numpy)) + " numpy roots"
@@ -286,6 +300,7 @@ def test_Poly_Roots_N(N, printRoots=False, printPolys=False, printParams=False, 
         for root in sorted(roots):
           print str(root) + "  \t" + str(f(root))
 
+
 def test_Poly_Roots(printRoots=False, printPolys=False, printParams=False):
     for N in range(2,41):
         test_Poly_Roots_N(N,printRoots,printPolys,printParams)
@@ -293,5 +308,5 @@ def test_Poly_Roots(printRoots=False, printPolys=False, printParams=False):
 if __name__ == "__main__":
     #test_Roots()
     #test_Poly_Roots()
-    test_Poly_Roots_N(31, printRoots=False, printPolys=False, printParams=False)
-    #test_Wilkinson(printRoots=True, printPolys=False, printParams=False)
+    #test_Poly_Roots_N(14, printRoots=False, printPolys=False, printParams=False)
+    test_Wilkinson(printRoots=True, printPolys=False, printParams=False)
