@@ -29,7 +29,7 @@ I have also tried several optimizations and strategies for numerical stability.
 import numpy as np
 from scipy import integrate
 import math
-from gilfunctions import *
+from functions import *
 
 mode_off = 0
 
