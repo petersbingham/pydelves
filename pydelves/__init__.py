@@ -276,15 +276,7 @@ class root_container:
 
     def _log_notes(self,lp,status):
         s = "."*lp.lvl_cnt
-        if status & warn_inaccurate_roche:
-            print s+"WARNING: inaccurate final roche."
-        if status & warn_could_not_locate_roche_root:
-            print s+"WARNING: could not locate roche root."
-        if status & warn_root_check_disabled:
-            print s+"WARNING: root checks disabled."
-        if not status&mode_warn_switch:
-            print s+"All roots found for max_steps and I0_tol parameters."
-        print "Status Num: " + str(status)
+        print_warnings(status, s)
 
     def log_roots(self,lp):
         if lp.mode & mode_log_debug:
@@ -543,7 +535,9 @@ class global_parameters:
     def __init__(self): 
         self.f = None
         self.fp = None
+        self.set_defaults()
 
+    def set_defaults(self):
         self.N = default_N
         self.outlier_coeff = default_outlier_coeff
         self.max_order = default_max_order
@@ -710,6 +704,23 @@ def set_advanced_parameters(dist_eps=default_dist_eps,lmt_N=default_lmt_N,
     '''
     gp.set_advanced_parameters(dist_eps,lmt_N,lmt_eps,bnd_thres)
 
+def set_default_parameters():
+    gp.set_defaults()
+
+def was_warning(status):
+    return status&mode_warn_switch
+    
+def print_warnings(status, s=""):
+    if status & warn_inaccurate_roche:
+        print s+"WARNING: inaccurate final roche."
+    if status & warn_could_not_locate_roche_root:
+        print s+"WARNING: could not locate roche root."
+    if status & warn_root_check_disabled:
+        print s+"WARNING: root checks disabled."
+    if not status&mode_warn_switch:
+        print s+"All roots found for max_steps and I0_tol parameters."
+    print "Status Num: " + str(status)
+    
 def droots(f,fp,rx,ry,rw,rh,N=default_N,max_steps=default_max_steps,
            mode=default_mode,known_roots=[],lvl_cnt=0):
     '''
