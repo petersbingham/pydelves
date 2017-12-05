@@ -276,7 +276,7 @@ class root_container:
 
     def _log_notes(self,lp,status):
         s = "."*lp.lvl_cnt
-        print_warnings(status, s)
+        print_status(status, s)
 
     def log_roots(self,lp):
         if lp.mode & mode_log_debug:
@@ -708,9 +708,9 @@ def set_default_parameters():
     gp.set_defaults()
 
 def was_warning(status):
-    return status&mode_warn_switch
+    return bool(status&mode_warn_switch)
     
-def print_warnings(status, s=""):
+def print_status(status, s=""):
     if status & warn_inaccurate_roche:
         print s+"WARNING: inaccurate final roche."
     if status & warn_could_not_locate_roche_root:

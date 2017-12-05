@@ -44,7 +44,7 @@ def run_poly(polyOrder,printRoots,printPolys):
 
     status,roots_delves,roots_numpy=\
         poly_roots(polyOrder,N,max_steps,mode,printPolys)
-    print_warnings(status)
+    print_status(status)
 
     print "Comparison with numpy:"
     print "\t" + str(len(roots_numpy)) + " numpy roots"
@@ -108,7 +108,7 @@ def run_wilkinson(printRoots):
     set_advanced_parameters(dist_eps,lmt_N,lmt_eps,bnd_thres)
 
     status,roots=wilkinson(N,max_steps,mode)
-    print_warnings(status)
+    print_status(status)
 
     if printRoots:
         for root in sorted(roots):
