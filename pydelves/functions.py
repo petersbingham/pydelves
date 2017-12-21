@@ -13,7 +13,7 @@ Modified by P Bingham October-November 2017
 import numpy as np
 from scipy import integrate
 import math
-import cmath as cm
+import cmath
 
 def muller(x1,x2,x3,f,N=400,ltol=1e-12,htol=1e-12):
     '''
@@ -53,8 +53,8 @@ def muller(x1,x2,x3,f,N=400,ltol=1e-12,htol=1e-12):
         B = (2.*q+1.)*f(x3)-(1.+q)**2.*f(x2)+q**2.*f(x1)
         C = (1.+q)*f(x3)
 
-        D1 = B+cm.sqrt(B**2-4.*A*C)
-        D2 = B-cm.sqrt(B**2-4.*A*C)
+        D1 = B+cmath.sqrt(B**2-4.*A*C)
+        D2 = B-cmath.sqrt(B**2-4.*A*C)
         if abs(D1) > abs(D2):
             D = D1
         elif D1 == D2 == 0:
@@ -173,17 +173,24 @@ def new_f_frac_safe(f_frac,z0,residues,roots,max_ok,val=None,lmt_N=10,lmt_eps=1e
     Returns:
         The new value of f_frac(z0) once the chosen poles have been subtracted.
     '''
+    zeroDiv = False
     try:
         if val == None:
             val = f_frac(z0)
         if abs(val) < max_ok:
-            return new_f_frac(f_frac,z0,residues,roots,val), True
+            ret = new_f_frac(f_frac,z0,residues,roots,val), True
         else:
-            return limit(lambda z: new_f_frac(f_frac,z,residues,roots),
+            ret = limit(lambda z: new_f_frac(f_frac,z,residues,roots),
                          z0,lmt_N,lmt_eps), True
+        if cmath.isinf(ret[0]) or cmath.isnan(ret[0]):
+            zeroDiv = True
     except ZeroDivisionError:
-        return limit(lambda z: new_f_frac(f_frac,z,residues,roots),
-                     z0,lmt_N,lmt_eps), False
+        zeroDiv = True
+
+    if zeroDiv:   
+        ret = limit(lambda z: new_f_frac(f_frac,z,residues,roots),z0,
+                    lmt_N,lmt_eps), False
+    return ret
 
 def locate_poly_roots(y_smooth,c,num_roots_to_find):
     '''
