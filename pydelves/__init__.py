@@ -29,6 +29,7 @@ I have also tried several optimizations and strategies for numerical stability.
 import numpy as np
 from scipy import integrate
 import math
+import cmath
 from functions import *
 
 mode_off = 0
@@ -57,15 +58,16 @@ mode_accept_all_mullers = 0x8
 mode_use_stripped_subtraction = 0x10
 
 #Recursion is expensive. If the routine is selected to not recurse on either of
-#the two conditions below then a warning will be returned from the routine, as
+#the three conditions below then a warning will be returned from the routine, as
 #can't guarantee that all of the roots have been found.
-mode_dont_recurse_on_inaccurate_roche = 0x20
-mode_dont_recurse_on_not_all_interior_found = 0x40
+mode_dont_recurse_on_bad_roche = 0x20
+mode_dont_recurse_on_inaccurate_roche = 0x40
+mode_dont_recurse_on_not_all_interior_found = 0x80
 
 #If function is a polynomial with real coefficients then roots will occur in 
 #a+ib, a-ib pairs. If mode==mode_add_conjs then routine will take advantage of 
 #this by automatically adding missing partners before recursing.
-mode_add_conjs = 0x80
+mode_add_conjs = 0x100
 
 #Modes for the different log modes.
 mode_log_recursive = 0x200
@@ -78,17 +80,19 @@ mode_log_switch = 0x1FF
 
 warn_root_check_disabled = 0x1
 warn_inaccurate_roche = 0x2
-warn_could_not_locate_roche_root = 0x4
+warn_bad_roche = 0x4
+warn_could_not_locate_roche_root = 0x8
 
-note_inaccurate_roche = 0x8
-note_could_not_locate_roche_root = 0x10
-note_muller_fail_1st = 0x20
-note_muller_fail_2nd = 0x40
-note_muller_exception = 0x80
-note_root_sub_div_by_zero = 0x100
+note_inaccurate_roche = 0x10
+note_bad_roche = 0x20
+note_could_not_locate_roche_root = 0x40
+note_muller_fail_1st = 0x80
+note_muller_fail_2nd = 0x100
+note_muller_exception = 0x200
+note_root_sub_div_by_zero = 0x400
 
 #Used for switching out notes from warnings:
-mode_warn_switch = 0x7
+mode_warn_switch = 0xF
 
 default_N = 500 
 default_max_steps = 5
@@ -365,10 +369,14 @@ class root_container:
 
     def is_polysolve_required(self,lp,I0,num_pred_roots):
         roche_accurate = gp.is_roche_accurate(I0)
+        if (cmath.isinf(I0) or cmath.isnan(I0)) and\
+           not lp.mode & mode_dont_recurse_on_bad_roche:
+            return False
         if not roche_accurate and\
            not lp.mode & mode_dont_recurse_on_inaccurate_roche:
             return False
-        return num_pred_roots <= gp.max_order and num_pred_roots >= 1
+        return num_pred_roots <= gp.max_order+gp.I0_tol and\
+               num_pred_roots >= 1-gp.I0_tol
 
     def from_polysolve(self,lp,b,num_pred_roots,I0):
         self.interior_rough = locate_poly_roots(b.y_smooth,b.c,num_pred_roots)
@@ -496,19 +504,23 @@ def all_interior_found(roots,num_pred_roots):
     return len(roots.interior_new)>=num_pred_roots
 
 def do_subcalculation(lp,roots,I0,num_pred_roots):
-    # Don't count the added conjs at this stage, just pass them to the 
-    # subregions. Otherwise will confuse the routine.
-    all_int_fnd = all_interior_found(roots,num_pred_roots)
-    roche_accurate = gp.is_roche_accurate(I0)
     ret = False
-    if num_pred_roots>gp.max_order:
+    if (cmath.isinf(I0) or cmath.isnan(I0)) and\
+           not lp.mode & mode_dont_recurse_on_bad_roche:
         ret = True
-    if not roche_accurate and\
-       not lp.mode & mode_dont_recurse_on_inaccurate_roche:
-        ret = True
-    if not all_int_fnd and\
-       not lp.mode & mode_dont_recurse_on_not_all_interior_found:
-        ret = True
+    else:
+        # Don't count the added conjs at this stage, just pass them to the 
+        # subregions. Otherwise will confuse the routine.
+        all_int_fnd = all_interior_found(roots,num_pred_roots)
+        roche_accurate = gp.is_roche_accurate(I0)        
+        if num_pred_roots > gp.max_order+gp.I0_tol:
+            ret = True
+        elif not roche_accurate and\
+           not lp.mode & mode_dont_recurse_on_inaccurate_roche:
+            ret = True
+        elif not all_int_fnd and\
+           not lp.mode & mode_dont_recurse_on_not_all_interior_found:
+            ret = True
     return ret and lp.max_steps!=0
 
 def calculate_for_subregions(lp,b,roots):
@@ -593,7 +605,12 @@ class global_parameters:
 
     def update_state_for_subcalc(self,lp,do_subcalc,roots,num_pred_roots,I0):
         status = 0
-        if not gp.is_roche_accurate(I0):
+        if cmath.isinf(I0) or cmath.isnan(I0):
+            if do_subcalc:
+                status = gp.handle_state(lp,note_bad_roche)
+            else:
+                status = gp.handle_state(lp,warn_bad_roche)
+        elif not gp.is_roche_accurate(I0):
             if do_subcalc:
                 status = gp.handle_state(lp,note_inaccurate_roche)
             else:
@@ -711,6 +728,8 @@ def was_warning(status):
     return bool(status&mode_warn_switch)
     
 def print_status(status, s=""):
+    if status & warn_bad_roche:
+        print s+"WARNING: bad final roche."
     if status & warn_inaccurate_roche:
         print s+"WARNING: inaccurate final roche."
     if status & warn_could_not_locate_roche_root:
@@ -773,8 +792,11 @@ def droots(f,fp,rx,ry,rw,rh,N=default_N,max_steps=default_max_steps,
 
     status |= gp.handle_state(lp,b.smoothed(roots))
     I0 = integrate.trapz(b.y_smooth,b.c)  # Approx num of roots not subtracted
-    num_pred_roots = int(math.ceil(abs(I0)-gp.I0_tol))
-
+    
+    num_pred_roots = 0
+    if not cmath.isinf(I0) and not cmath.isnan(I0):
+        num_pred_roots = int(math.ceil(abs(I0)-gp.I0_tol))
+    
     if roots.is_polysolve_required(lp,I0,num_pred_roots):
         new_state = roots.from_polysolve(lp,b,num_pred_roots,I0)
         status |= gp.handle_state(lp,new_state)
@@ -785,6 +807,7 @@ def droots(f,fp,rx,ry,rw,rh,N=default_N,max_steps=default_max_steps,
         new_state,num_regions = calculate_for_subregions(lp,b,roots)
         status |= new_state
         roots.log_sub_region(lp,num_regions)
+
     new_state = gp.update_state_for_subcalc(lp,do_subcalc,roots,num_pred_roots,
                                             I0)
     status |= gp.handle_state(lp,new_state)
