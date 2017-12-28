@@ -1,10 +1,7 @@
 from examples import *
 from functions import *
 
-def run_poly(polyOrder,printRoots,printPolys):
-    N = default_N
-    max_steps = default_max_steps
-
+def setParams():
     outlier_coeff = default_outlier_coeff
     max_order = default_max_order
     I0_tol = default_I0_tol
@@ -39,6 +36,12 @@ def run_poly(polyOrder,printRoots,printPolys):
     set_muller_parameters(mul_N,mul_fzltol,mul_fzhtol,mul_off)
     set_mode_parameters(mul_ztol,conj_min_i)
     set_advanced_parameters(dist_eps,lmt_N,lmt_eps,bnd_thres)
+    return mode
+
+def run_poly(polyOrder,printRoots,printPolys):
+    N = default_N
+    max_steps = default_max_steps
+    mode = setParams()
 
     print "\npolyOrder = " + str(polyOrder)
 
@@ -59,10 +62,10 @@ def run_poly(polyOrder,printRoots,printPolys):
 
     if printRoots:
         for root in sorted(roots_numpy):
-          print str(root) + "  \t" + str(get_poly_fun(polyOrder)(root))
+            print str(root) + "  \t" + str(get_poly_fun(polyOrder)(root))
         print
         for root in sorted(roots_delves):
-          print str(root) + "  \t" + str(get_poly_fun(polyOrder)(root))
+            print str(root) + "  \t" + str(get_poly_fun(polyOrder)(root))
 
 def run_poly_range(printRoots,printPolys):
     for polyOrder in range(2,41):
@@ -71,50 +74,29 @@ def run_poly_range(printRoots,printPolys):
 def run_wilkinson(printRoots):
     N = 100
     max_steps = default_max_steps
-
-    outlier_coeff = default_outlier_coeff
-    max_order = default_max_order
-    I0_tol = default_I0_tol
-
-    mul_N = default_mul_N
-    mul_fzltol = default_mul_fzltol
-    mul_fzhtol = default_mul_fzhtol
-    mul_off = default_mul_off
-
-    mul_ztol = default_mul_ztol
-    conj_min_i = default_conj_min_i
-
-    dist_eps = default_dist_eps
-    lmt_N = default_lmt_N
-    lmt_eps = default_lmt_eps
-    bnd_thres = default_bnd_thres
-
-    logmode = mode_off    
-    #logmode |= mode_log_summary
-    #logmode |= mode_log_recursive
-    #logmode |= mode_log_debug
-    #logmode |= mode_log_verbose
-
-    calcmode = mode_off
-    #calcmode |= mode_dont_recurse_on_inaccurate_roche
-    #calcmode |= mode_dont_recurse_on_not_all_interior_found
-    #calcmode |= mode_accept_int_muller_close_to_good_roche
-    #calcmode |= mode_use_stripped_subtraction
-    mode = logmode | calcmode
-
-    set_delves_routine_parameters(outlier_coeff,max_order,I0_tol)
-    set_muller_parameters(mul_N,mul_fzltol,mul_fzhtol,mul_off)
-    set_mode_parameters(mul_ztol,conj_min_i)
-    set_advanced_parameters(dist_eps,lmt_N,lmt_eps,bnd_thres)
+    mode = setParams()
 
     status,roots=wilkinson(N,max_steps,mode)
     print_status(status)
 
     if printRoots:
         for root in sorted(roots):
-          print str(root) + "  \t" + str(wilk_f(root))
+            print str(root) + "  \t" + str(wilk_f(root))
+
+def run_boundary_root(printRoots):
+    N = 100
+    max_steps = default_max_steps
+    mode = setParams()
+
+    status,roots=boundary_root(N,max_steps,mode)
+    print_status(status)
+
+    if printRoots:
+        for root in sorted(roots):
+            print str(root) + "  \t" + str(pow(root,2.))
 
 if __name__ == "__main__":
     run_poly_range(printRoots=False, printPolys=False)
     #run_poly(14, printRoots=False, printPolys=False)
     #run_wilkinson(printRoots=True)
+    #run_boundary_root(printRoots=True)

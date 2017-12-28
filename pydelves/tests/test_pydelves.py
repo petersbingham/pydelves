@@ -79,3 +79,15 @@ class poly_bad_parameters_testcase(pydelves_testcase):
         # For the test to be valid require enough bad status over the poly
         # range. If this fails then relax the parameters.
         self.assertTrue(num_bad_status>3,"Not enough bad status.")
+
+#Test that no div zero errors and only a single root returned when the
+#root coincides with a boundary point.
+class boundary_root_testcase(pydelves_testcase):
+    def runTest(self):
+        status,roots=boundary_root(mode=mode_strict_boundary_search)
+        #Additional root found. Both are very close to zero.
+        #Without mode_strict_boundary_search many more found:
+        self.assertTrue(len(roots)==2,"More than one root found.")
+        self.assertFalse(was_warning(status),"Bad Status")
+        self.assertTrue(almost_equal(roots[0],0.,1e-06),"Incorrect root.")
+        
