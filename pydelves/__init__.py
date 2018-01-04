@@ -64,19 +64,26 @@ mode_dont_recurse_on_bad_roche = 0x20
 mode_dont_recurse_on_inaccurate_roche = 0x40
 mode_dont_recurse_on_not_all_interior_found = 0x80
 
+#When searching for roots around the boundary default is to check for turning
+#points in the absolute values. This can sometimes identify spurious outliers.
+#Following mode checks the components separately. This mode has been observed
+#to add ~50% to the run time, so is off by default. Spurious outliers that are 
+#identified when not in this mode will usually be removed with the purge.
+mode_strict_boundary_search = 0x100
+
 #If function is a polynomial with real coefficients then roots will occur in 
 #a+ib, a-ib pairs. If mode==mode_add_conjs then routine will take advantage of 
 #this by automatically adding missing partners before recursing.
-mode_add_conjs = 0x100
+mode_add_conjs = 0x200
 
 #Modes for the different log modes.
-mode_log_recursive = 0x200
-mode_log_summary = 0x400
-mode_log_verbose = 0x800
-mode_log_debug = 0x1000
+mode_log_recursive = 0x1000
+mode_log_summary = 0x2000
+mode_log_verbose = 0x4000
+mode_log_debug = 0x8000
 
-#Used for switching the log off on recursion when not int mode_log_recursive:
-mode_log_switch = 0x1FF
+#Used for switching the log off on recursion when not in mode_log_recursive:
+mode_log_switch = 0xFFF
 
 warn_root_check_disabled = 0x1
 warn_inaccurate_roche = 0x2
@@ -100,6 +107,7 @@ default_mode = mode_off
 default_outlier_coeff = 100.
 default_max_order = 10
 default_I0_tol = 5e-3
+default_fun_multiplier = 1.
 default_mul_N = 400
 default_mul_fzltol = 1e-12
 default_mul_fzhtol = 1e-12
@@ -332,7 +340,10 @@ class root_container:
             print "-"*lp.lvl_cnt
 
     def at_boundary(self,lp,b):
-        outlier_indices = find_maxes(map(abs,b.y))
+        if lp.mode & mode_strict_boundary_search:
+            outlier_indices = find_maxes_complex(b.y)
+        else:
+            outlier_indices = find_maxes(map(abs,b.y))
         status = 0
         self.boundary_outliers = []
         for i in outlier_indices:
@@ -450,6 +461,9 @@ class boundary:
         self.y = [self.f_frac(z) for z in self.c]
         self.max_ok = abs(gp.outlier_coeff*get_max(self.y))
 
+    def get_corner_indices(self):
+        return [0, gp.N, 2*gp.N, 3*gp.N]
+
     def reg_i(self):
         return self.rx, self.ry, self.rw_i, self.rh_i
 
@@ -554,6 +568,7 @@ class global_parameters:
         self.outlier_coeff = default_outlier_coeff
         self.max_order = default_max_order
         self.I0_tol = default_I0_tol
+        self.fun_multiplier = default_fun_multiplier
 
         self.mul_N = default_mul_N
         self.mul_fzltol = default_mul_fzltol
@@ -583,15 +598,21 @@ class global_parameters:
         self.conj_min_i = conj_min_i
         self.mul_ztol = mul_ztol
 
-    def set_advanced_parameters(self,dist_eps,lmt_N,lmt_eps,bnd_thres):
+    def set_advanced_parameters(self,dist_eps,lmt_N,lmt_eps,bnd_thres,
+                                fun_multiplier):
         self.dist_eps = dist_eps
         self.lmt_N = lmt_N
         self.lmt_eps = lmt_eps
         self.bnd_thres = bnd_thres
+        self.fun_multiplier = fun_multiplier
 
     def set_calc_parameters(self,f,fp,N):
-        self.f = f
-        self.fp = fp
+        if self.fun_multiplier == 1.:
+            self.f = f
+            self.fp = fp
+        else:
+            self.f = lambda x: self.fun_multiplier*f(x)
+            self.fp = lambda x: self.fun_multiplier*fp(x)
         self.N = N
 
     def handle_state(self,lp,status):
@@ -699,8 +720,8 @@ def set_mode_parameters(mul_ztol=default_mul_ztol,
     gp.set_mode_parameters(mul_ztol, conj_min_i)
     
 def set_advanced_parameters(dist_eps=default_dist_eps,lmt_N=default_lmt_N,
-                            lmt_eps=default_lmt_eps,
-                            bnd_thres=default_bnd_thres):
+                            lmt_eps=default_lmt_eps,bnd_thres=default_bnd_thres,
+                            fun_multiplier=default_fun_multiplier):
     '''
     Set advanced arguments
 
@@ -708,7 +729,7 @@ def set_advanced_parameters(dist_eps=default_dist_eps,lmt_N=default_lmt_N,
         dist_eps (optional[float]): epsilon used when distinguishing roots
             using absolute values. Within this they are judged the same root.
 
-        lmt_N (int): number of points used in the estimate when calculaing the
+        lmt_N (int): number of points used in the estimate when calculating the
             residues.
 
         lmt_eps (optional[float]): distance from z0 at which estimating points 
@@ -717,9 +738,11 @@ def set_advanced_parameters(dist_eps=default_dist_eps,lmt_N=default_lmt_N,
         bnd_thres (optional[float]): The perpendicular distance outwards from 
             the region boundary within which roots must lie to be considered
             boundary.
-
+            
+        fun_multiplier (optional[float]): Value to multiple the function and 
+            derivative by. Useful if values very low.
     '''
-    gp.set_advanced_parameters(dist_eps,lmt_N,lmt_eps,bnd_thres)
+    gp.set_advanced_parameters(dist_eps,lmt_N,lmt_eps,bnd_thres,fun_multiplier)
 
 def set_default_parameters():
     gp.set_defaults()

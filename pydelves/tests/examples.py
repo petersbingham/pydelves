@@ -126,3 +126,16 @@ def wilkinson(N=default_N,max_steps=default_max_steps,mode=default_mode):
     y_cent = 0
 
     return droots(wilk_f,wilk_fp,x_cent,y_cent,width,height,N,max_steps,mode)
+
+def boundary_root(N=default_N,max_steps=default_max_steps,mode=default_mode):
+    '''
+    Example where the root and boundary point coincide.
+    '''
+    f = lambda z: pow(z,2.)
+    fp = lambda z: 2.*z
+    x_cent = 0.
+    y_cent = 0.
+    width = 1.
+    height = 1.
+
+    return droots(f,fp,x_cent,y_cent,width,height,N,max_steps,mode)

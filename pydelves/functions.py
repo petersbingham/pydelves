@@ -15,6 +15,11 @@ from scipy import integrate
 import math
 import cmath
 
+def isnan(x):
+    return math.isinf(x) or math.isnan(x)
+def iscnan(x):
+    return cmath.isinf(x) or cmath.isnan(x)
+
 def muller(x1,x2,x3,f,N=400,ltol=1e-12,htol=1e-12):
     '''
     A method that works well for finding roots locally in the complex plane.
@@ -182,7 +187,7 @@ def new_f_frac_safe(f_frac,z0,residues,roots,max_ok,val=None,lmt_N=10,lmt_eps=1e
         else:
             ret = limit(lambda z: new_f_frac(f_frac,z,residues,roots),
                          z0,lmt_N,lmt_eps), True
-        if cmath.isinf(ret[0]) or cmath.isnan(ret[0]):
+        if iscnan(ret[0]):
             zeroDiv = True
     except ZeroDivisionError:
         zeroDiv = True
@@ -337,10 +342,11 @@ def get_max(y):
     q75, q50, q25 = np.percentile(y, [75 , 50, 25])
     IQR = q75-q25
     return q50+IQR
-
+    
 def find_maxes(y):
     '''
     Given a list of numbers, find the indices where local maxima happen.
+    Examines absolute value.
 
     Args:
         y(list of floats).
@@ -351,6 +357,37 @@ def find_maxes(y):
     '''
     maxes = []
     for i in xrange(-2,len(y)-2):
-        if y[i-1] < y[i] > y[i+1]:
+        if isnan(y[i]):
             maxes.append(i)
+        elif isnan(y[i-1]) or isnan(y[i+1]):
+            pass
+        elif y[i-1] < y[i] > y[i+1]:
+            maxes.append(i)
+    return maxes
+
+def is_tp(y1,y2,y3):
+    #Handles the case when purely real or purely imaginary.
+    return (y1 == 0. and y2 == 0. and y3 == 0.) or y1 < y2 > y3 or y1 > y2 < y3
+    
+def find_maxes_complex(y):
+    '''
+    Given a list of numbers, find the indices where local maxima happen.
+    Examines real and imaginary components separately.
+
+    Args:
+        y(list of floats).
+
+    Returns:
+        list of indices where maxima occur.
+
+    '''
+    maxes = []
+    for i in xrange(-2,len(y)-2):
+        if iscnan(y[i]):
+            maxes.append(i)
+        elif iscnan(y[i-1]) or iscnan(y[i+1]):
+            pass
+        elif is_tp(y[i-1].real,y[i].real,y[i+1].real):
+            if is_tp(y[i-1].imag,y[i].imag,y[i+1].imag):
+                maxes.append(i)
     return maxes
