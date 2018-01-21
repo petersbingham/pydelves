@@ -1,16 +1,16 @@
 def get_root_bounds(roots):
-  x_lmt = [None,None]
-  y_lmt = [None,None]
-  for root in roots:
-    if x_lmt[0] is None or x_lmt[0]>root.real:
-      x_lmt[0] = root.real
-    if x_lmt[1] is None or x_lmt[1]<root.real:
-      x_lmt[1] = root.real
-    if y_lmt[0] is None or y_lmt[0]>root.imag:
-      y_lmt[0] = root.imag
-    if y_lmt[1] is None or y_lmt[1]<root.imag:
-      y_lmt[1] = root.imag
-  return x_lmt, y_lmt
+    x_lmt = [None,None]
+    y_lmt = [None,None]
+    for root in roots:
+        if x_lmt[0] is None or x_lmt[0]>root.real:
+            x_lmt[0] = root.real
+        if x_lmt[1] is None or x_lmt[1]<root.real:
+            x_lmt[1] = root.real
+        if y_lmt[0] is None or y_lmt[0]>root.imag:
+            y_lmt[0] = root.imag
+        if y_lmt[1] is None or y_lmt[1]<root.imag:
+            y_lmt[1] = root.imag
+    return x_lmt, y_lmt
 
 def almost_equal(el1,el2,eps=1e-7):
     if abs(el1 - el2) < eps:

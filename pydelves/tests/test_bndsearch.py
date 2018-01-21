@@ -9,7 +9,8 @@ class pydelves_testcase(unittest.TestCase):
 
 class trig_testcase(pydelves_testcase):
     def runTest(self):
-        status,retroots = trig()
+        mode = mode_boundary_change_off|mode_boundary_search_on
+        status,retroots = trig(mode)
         self.assertFalse(was_warning(status))
         roots = np.asarray(retroots)
         self.assertTrue(two_sets_almost_equal(roots/np.pi,
@@ -21,8 +22,8 @@ class poly_testcase(pydelves_testcase):
     def runTest(self):
         for polyOrder in range(2,41):
             print "Testing polyOrder " + str(polyOrder)
-            status,roots_delves,roots_numpy=\
-                poly_roots(polyOrder)
+            mode = mode_boundary_change_off|mode_boundary_search_on
+            status,roots_delves,roots_numpy=poly_roots(polyOrder,mode=mode)
             self.assertFalse(was_warning(status),"Bad Status")
             self.assertEqual(len(roots_delves),len(roots_numpy),"Bad Root Nums")
             for root_numpy in roots_numpy:
@@ -35,7 +36,8 @@ class poly_testcase(pydelves_testcase):
 
 class wilkinson_testcase(pydelves_testcase):
     def runTest(self):
-        status,retroots = wilkinson(N=100) # N=100 or exception
+        mode = mode_boundary_change_off|mode_boundary_search_on
+        status,retroots = wilkinson(N=100,mode=mode) # N=100 or exception
         # self.assertFalse(was_warning(status)) # See issue #15
         retroots.sort(key=abs)
         self.assertEqual(len(retroots),20,"Bad Root Nums")
@@ -51,12 +53,12 @@ class poly_bad_parameters_testcase(pydelves_testcase):
         # These modes cause not all roots to be found for some Ns:
         mode = mode_dont_recurse_on_inaccurate_roche
         mode |= mode_dont_recurse_on_not_all_interior_found
+        mode |= mode_boundary_change_off|mode_boundary_search_on
 
         num_bad_status = 0
         for polyOrder in range(2,41):
             print "Testing polyOrder " + str(polyOrder)
-            status,roots_delves,roots_numpy=\
-                poly_roots(polyOrder,mode=mode)
+            status,roots_delves,roots_numpy=poly_roots(polyOrder,mode=mode)
 
             good_status = True
             if len(roots_delves) == len(roots_numpy):
@@ -80,14 +82,18 @@ class poly_bad_parameters_testcase(pydelves_testcase):
         # range. If this fails then relax the parameters.
         self.assertTrue(num_bad_status>3,"Not enough bad status.")
 
-#Test that no div zero errors and only a single root returned when the
-#root coincides with a boundary point.
+
 class boundary_root_testcase(pydelves_testcase):
     def runTest(self):
-        status,roots=boundary_root(mode=mode_strict_boundary_search)
-        #Additional root found. Both are very close to zero.
-        #Without mode_strict_boundary_search many more found:
-        self.assertTrue(len(roots)==2,"More than one root found.")
+        mode = mode_boundary_change_off | mode_boundary_search_on
+        mode |= mode_strict_boundary_search
+        status,roots=boundary_root(mode=mode)
+        self.assertTrue(len(roots)==1,"Too many roots found.")
         self.assertFalse(was_warning(status),"Bad Status")
         self.assertTrue(almost_equal(roots[0],0.,1e-06),"Incorrect root.")
-        
+
+if __name__ == "__main__":
+    #Just for debug
+    b = trig_testcase()
+    b.runTest()
+    

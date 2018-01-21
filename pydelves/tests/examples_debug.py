@@ -96,7 +96,8 @@ def run_boundary_root(printRoots):
             print str(root) + "  \t" + str(pow(root,2.))
 
 if __name__ == "__main__":
-    run_poly_range(printRoots=False, printPolys=False)
+    trig(mode_boundary_change_off)
+    #run_poly_range(printRoots=False, printPolys=False)
     #run_poly(14, printRoots=False, printPolys=False)
     #run_wilkinson(printRoots=True)
     #run_boundary_root(printRoots=True)

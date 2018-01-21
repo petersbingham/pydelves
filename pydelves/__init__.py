@@ -32,58 +32,101 @@ import math
 import cmath
 from functions import *
 
+#This is the default. Optimal for simple functions.
 mode_off = 0
 
-#Since muller uses f(x)<tol then if differential is very high small displacement
-#from root can give much large f(x). Since we know the rough value of the roche
-#root we can compare to that instead (or as well). Two options here. If the 
-#good_roche variant is selected then will only accept if the routine had a good
-#I0.
-mode_accept_int_muller_close_to_good_roche = 0x1
-mode_accept_int_muller_close_to_any_roche = 0x2
-#Similarly, for the boundary roots. Note that boundary roots have a greater
-#tendency to wander from their starting than the roche roots. Recommended to
-#keep the following mode off and use mode_use_stripped_subtraction instead.
-mode_accept_bnd_muller_close_to_start = 0x4
-#Or the following option to accept all mullers, without any check. Good when
-#roots can be missing and and some external check is applied.
-mode_accept_all_mullers = 0x8
-
-#Due to tendency to wander it's harder to verify the boundary roots. The 
-#following mode extends the supplied region by twice bnd_thres and carries out 
-#the bounadary root calculation and roche integration at the midline between 
-#the supplied and the extended regions. Only boundary roots between the 
-#supplied region and the extended region are used. Only roche roots inside the
-#supplied region are returned to the user.
-mode_use_stripped_subtraction = 0x10
-
+################################################################################
+########################### Recursion Modes ####################################
+################################################################################
 #Recursion is expensive. If the routine is selected to not recurse on either of
 #the three conditions below then a warning will be returned from the routine, as
 #can't guarantee that all of the roots have been found.
-mode_dont_recurse_on_bad_roche = 0x20
-mode_dont_recurse_on_inaccurate_roche = 0x40
-mode_dont_recurse_on_not_all_interior_found = 0x80
+mode_dont_recurse_on_bad_roche = 0x1
+mode_dont_recurse_on_inaccurate_roche = 0x2
+mode_dont_recurse_on_not_all_interior_found = 0x4
+
+################################################################################
+######################## Root identifying Modes ################################
+################################################################################
+#Since muller uses f(x)<tol then if differential is very high small displacement
+#from root can give much larger f(x). Since we know the rough value of the roche
+#root we can compare to that instead (or as well). Two options here. If the 
+#good_roche variant is selected then will only accept if the routine had a good
+#I0.
+mode_accept_int_muller_close_to_good_roche = 0x100
+mode_accept_int_muller_close_to_any_roche = 0x200
+#Or the following option to accept all mullers, without any check. Good when
+#roots can be missing and and some external check is applied.
+mode_accept_all_mullers = 0x400
+
+#When recursing the routine doesn't bother trying to find the roche roots if
+#the IO is outside I0_tol from integer; it will be trying in the subregion.
+#However, if the roche never becomes good at any level of recursion an attempt
+#will never be made. This mode tells the routine to both attempt to find the
+#roche roots and to recurse with the I0 is bad.
+mode_attempt_polysolve_on_bad_roche = 0x800
+
+################################################################################
+############################# Boundary Modes ###################################
+################################################################################
+#Poles close enough to boundary will deteriorate the values obtained from the
+#roche integrals. These modes will change the boundary until a good roche is
+#obtained.
+mode_boundary_change_off = 0x10000
+
+#Use this mode to attempt to remove poles close to contour by searching for 
+#turning points along the contour. These are then used as starting points for 
+#mullers
+mode_boundary_search_on = 0x20000
+
+#Use this mode to turn off boundary smoothing and root subtraction
+mode_boundary_smoothing_off = 0x40000
+
+#Due to tendency to wander it's harder to verify the boundary roots. The 
+#following mode extends the supplied region by twice bnd_thres and carries out 
+#the boundary root calculation and roche integration at the midline between 
+#the supplied and the extended regions. Only boundary roots between the 
+#supplied region and the extended region are used. Only roche roots inside the
+#supplied region are returned to the user.
+mode_use_stripped_subtraction = 0x80000
+
+#Similar to mode_accept_int_muller_close_to_good_roche. Note that boundary roots
+#have a greater tendency to wander from their starting than the roche roots. 
+#Recommended to keep the following mode off and use 
+#mode_use_stripped_subtraction instead.
+mode_accept_bnd_muller_close_to_start = 0x100000
 
 #When searching for roots around the boundary default is to check for turning
 #points in the absolute values. This can sometimes identify spurious outliers.
 #Following mode checks the components separately. This mode has been observed
 #to add ~50% to the run time, so is off by default. Spurious outliers that are 
 #identified when not in this mode will usually be removed with the purge.
-mode_strict_boundary_search = 0x100
+mode_strict_boundary_search = 0x200000
 
+################################################################################
+############################## Other Modes #####################################
+################################################################################
 #If function is a polynomial with real coefficients then roots will occur in 
 #a+ib, a-ib pairs. If mode==mode_add_conjs then routine will take advantage of 
 #this by automatically adding missing partners before recursing.
-mode_add_conjs = 0x200
+mode_add_conjs = 0x1000000
 
-#Modes for the different log modes.
-mode_log_recursive = 0x1000
-mode_log_summary = 0x2000
-mode_log_verbose = 0x4000
-mode_log_debug = 0x8000
 
-#Used for switching the log off on recursion when not in mode_log_recursive:
-mode_log_switch = 0xFFF
+
+################################################################################
+################################ Logging #######################################
+################################################################################
+log_off = 0
+log_recursive = 0x1
+log_summary = 0x2
+log_verbose = 0x4
+log_debug = 0x8
+
+
+################################################################################
+################################ Status ########################################
+################################################################################
+ok = 0
 
 warn_root_check_disabled = 0x1
 warn_inaccurate_roche = 0x2
@@ -97,13 +140,21 @@ note_muller_fail_1st = 0x80
 note_muller_fail_2nd = 0x100
 note_muller_exception = 0x200
 note_root_sub_div_by_zero = 0x400
+note_boundary_stuck = 0x800
+note_boundary_cnt_exceeded = 0x1000
 
 #Used for switching out notes from warnings:
 mode_warn_switch = 0xF
 
+
+################################################################################
+############################### Defaults #######################################
+################################################################################
+
 default_N = 500 
 default_max_steps = 5
 default_mode = mode_off 
+default_log = log_off
 default_outlier_coeff = 100.
 default_max_order = 10
 default_I0_tol = 5e-3
@@ -113,30 +164,50 @@ default_mul_fzltol = 1e-12
 default_mul_fzhtol = 1e-12
 default_mul_off = 1e-5
 default_mul_ztol = 1e-4
+default_bnd_change = 0.01
+default_bnd_limit = None
+default_bnd_change_max_tries = 5
 default_conj_min_i = 1e-8
 default_dist_eps = 1e-7
 default_lmt_N = 10
 default_lmt_eps = 1e-3
 default_bnd_thres = 2.
 
-def root_purge(lst,eps=1e-7,conj_min_i=1e-8):
+
+################################################################################
+############################ Test Variables ####################################
+################################################################################
+
+test_region_changes = 0
+def reset_delves_test():
+    global test_region_changes
+    test_region_changes = 0
+def get_test_region_changes():
+    global test_region_changes
+    return test_region_changes
+
+################################################################################
+################################ Routine #######################################
+################################################################################
+
+def _root_purge(lst,eps=1e-7,conj_min_i=1e-8):
     if len(lst) == 0:
         return []
     for el in lst[:-1]:
         if abs(el-lst[-1]) < eps and \
         (el.imag/lst[-1].imag>=0 or abs(el.imag)<conj_min_i):
-            return root_purge(lst[:-1],eps,conj_min_i)
-    return root_purge(lst[:-1],eps,conj_min_i) + [lst[-1]]
+            return _root_purge(lst[:-1],eps,conj_min_i)
+    return _root_purge(lst[:-1],eps,conj_min_i) + [lst[-1]]
 
-def add_miss_conjs(lst,eps=1e-7,conj_min_i=1e-8):
+def _add_miss_conjs(lst,eps=1e-7,conj_min_i=1e-8):
     new_lst = []
     for el in lst:
         new_lst.append(el)
         new_lst.append(el.conjugate())
-    return root_purge(new_lst,eps,conj_min_i)
+    return _root_purge(new_lst,eps,conj_min_i)
 
-def locate_muller_root(lp,x1,x2,x3,found_roots,failed_roots):
-    status = 0
+def _locate_muller_root(lp,x1,x2,x3,found_roots,failed_roots):
+    status = ok
     try:          
         mull_root,ret = muller(x1,x2,x3,gp.f,gp.mul_N,gp.mul_fzltol,gp.mul_fzhtol)
         if lp.mode & mode_accept_all_mullers or ret:
@@ -148,8 +219,8 @@ def locate_muller_root(lp,x1,x2,x3,found_roots,failed_roots):
         status |= note_muller_exception
     return status
 
-def check_against_start_roots(failed_roots,reaccepted_roots):
-    status = 0
+def _check_against_start_roots(failed_roots,reaccepted_roots):
+    status = ok
     for rough_root, mull_root in failed_roots:
         if abs(rough_root-mull_root) < gp.mul_ztol:
             reaccepted_roots.append(mull_root)
@@ -157,7 +228,7 @@ def check_against_start_roots(failed_roots,reaccepted_roots):
             status |= note_muller_fail_2nd
     return status
 
-def check_against_rough_roots(lp,I0,failed_roots,reaccepted_roots):
+def _check_against_rough_roots(lp,I0,failed_roots,reaccepted_roots):
     check = False
     if lp.mode & mode_accept_int_muller_close_to_any_roche:
         check = True
@@ -165,25 +236,24 @@ def check_against_rough_roots(lp,I0,failed_roots,reaccepted_roots):
         if gp.is_roche_accurate(I0):
             check = True
     if check:
-        return check_against_start_roots(failed_roots,reaccepted_roots)
+        return _check_against_start_roots(failed_roots,reaccepted_roots)
     return 0
 
-def check_against_bnd_start_roots(lp,failed_roots,reaccepted_roots):
-    check = False
+def _check_against_bnd_start_roots(lp,failed_roots,reaccepted_roots):
     if lp.mode & mode_accept_bnd_muller_close_to_start:
-        return check_against_start_roots(failed_roots,reaccepted_roots)
+        return _check_against_start_roots(failed_roots,reaccepted_roots)
     return 0
 
-def correct_roots(lp,b,roots):
+def _correct_roots(lp,b,roots):
     if lp.lvl_cnt == 0:
-        roots_mod = inside_boundary(roots,*b.reg_i())
+        roots_mod = inside_boundary(roots,*b.reg_start())
     else:
         roots_mod = roots
     conjs_added = 0
     if lp.mode & mode_add_conjs:
-        roots_miss_conj = add_miss_conjs(roots_mod,gp.dist_eps,gp.conj_min_i)
+        roots_missing_conjs = _add_miss_conjs(roots_mod,gp.dist_eps,gp.conj_min_i)
         if lp.lvl_cnt == 0:
-            roots_final = inside_boundary(roots_missing_conjs,*b.reg_i())
+            roots_final = inside_boundary(roots_missing_conjs,*b.reg_start())
         else:
             roots_final = roots_missing_conjs
         conjs_added = len(roots_final)-len(roots_mod)
@@ -203,7 +273,7 @@ class root_container:
         self.boundary_purged = [] 
         self.boundary_new = []     
         self.boundary_within = []
-        self.boundary_and_known = []
+        self.boundary_and_known = self.known
         self.residues_subtracted = []
 
         self.interior_mull_all = []
@@ -228,9 +298,10 @@ class root_container:
         self.end = []
         self.end_purged = []
         self.end_unique = []
+        self.end_within = []
 
     def log_region(self,lp,b,I0,isSubregions):
-        if lp.mode & mode_log_summary:
+        if lp.log & log_summary:
             self._log_region(lp,b,I0,isSubregions)
 
     def _log_region(self,lp,b,I0,isSubregions):
@@ -243,35 +314,30 @@ class root_container:
         print s+str(len(self.boundary_within))+" from Boundary Muller."
         print s+"{:.5f}".format(abs(I0))+" Roche predicted. "
         a=""
-        print s+"  " + str(num_interior_roots_fnd) + " from Poly Muller."+a
+        print s+"  " + str(num_interior_roots_fnd) + " new from Poly Muller."+a
         if not isSubregions:
             print s+"  There were no subregions."
-        elif lp.mode & mode_log_recursive:
+        elif lp.log & log_recursive:
             print s+"  Subregions:"
 
     def log_sub_region(self,lp,num_regions):
-        if lp.mode & mode_log_summary:
+        if lp.log & log_summary:
             self._log_sub_region(lp,num_regions)
 
     def _log_sub_region(self,lp,num_regions):
         s = "."*lp.lvl_cnt
         num_sub_roots_fnd = len(self.interior_all_subs)
-        if num_regions>0 and lp.mode & mode_log_recursive:
+        if num_regions>0 and lp.log & log_recursive:
             print ""
         print(s+"  "+str(num_sub_roots_fnd)+" from "+str(num_regions)+\
               " subregions.")
 
     def log_totals(self,lp):
-        if lp.mode & mode_log_summary:
+        if lp.log & log_summary:
             self._log_totals(lp)
 
     def _log_totals(self,lp):
         s = "."*lp.lvl_cnt
-        num_interior_roots_fnd = len(self.interior_new)
-        num_sub_roots_fnd = len(self.interior_all_subs)
-        num_roots_found = num_interior_roots_fnd+\
-                          num_sub_roots_fnd+\
-                          self.num_added_conjs
         if self.num_added_conjs != 0:
             print s+"    "+str(self.num_added_conjs)+" added conjugates."
         msg = s+str(len(self.end_unique))+" total in this region. "
@@ -283,7 +349,7 @@ class root_container:
         print msg
 
     def log_notes(self,lp,status):
-        if lp.mode & mode_log_summary:
+        if lp.log & log_summary:
             self._log_notes(lp,status)
 
     def _log_notes(self,lp,status):
@@ -291,7 +357,7 @@ class root_container:
         print_status(status, s)
 
     def log_roots(self,lp):
-        if lp.mode & mode_log_debug:
+        if lp.log & log_debug:
             self._log_roots(lp)
 
     def _log_roots(self,lp):
@@ -334,9 +400,10 @@ class root_container:
         print s+"New:\n"+str(np.array(self.interior_all_subs))
         print "\nFINAL:"
         print s+"New:\n"+str(np.array(self.end_unique))
+        print s+"Within:\n"+str(np.array(self.end_within))
 
     def log_close_region(self,lp):
-        if lp.mode & mode_log_summary:
+        if lp.log & log_summary:
             print "-"*lp.lvl_cnt
 
     def at_boundary(self,lp,b):
@@ -344,14 +411,14 @@ class root_container:
             outlier_indices = find_maxes_complex(b.y)
         else:
             outlier_indices = find_maxes(map(abs,b.y))
-        status = 0
+        status = ok
         self.boundary_outliers = []
         for i in outlier_indices:
             self.boundary_outliers.append(b.c[i])
-            status |= locate_muller_root(lp,b.c[i-1],b.c[i+1],
+            status |= _locate_muller_root(lp,b.c[i-1],b.c[i+1],
                                         b.c[i],self.boundary_passed_fz,
                                         self.boundary_failed_fz)
-        status |= check_against_bnd_start_roots(lp,self.boundary_failed_fz,
+        status |= _check_against_bnd_start_roots(lp,self.boundary_failed_fz,
                                                self.boundary_passed_z)
         self.boundary_all = self.boundary_passed_fz + self.boundary_passed_z
         self.boundary_purged = purge(self.boundary_all,gp.dist_eps)
@@ -378,27 +445,32 @@ class root_container:
         self.boundary_within = inside_boundary(self.boundary_purged,*b.reg_i())
         return status
 
-    def is_polysolve_required(self,lp,I0,num_pred_roots):
+    def is_polysolve_required(self,lp,num_pred_roots,I0):
         roche_accurate = gp.is_roche_accurate(I0)
         if (cmath.isinf(I0) or cmath.isnan(I0)) and\
            not lp.mode & mode_dont_recurse_on_bad_roche:
             return False
         if not roche_accurate and\
+           not lp.mode & mode_attempt_polysolve_on_bad_roche and\
            not lp.mode & mode_dont_recurse_on_inaccurate_roche:
             return False
-        return num_pred_roots <= gp.max_order+gp.I0_tol and\
-               num_pred_roots >= 1-gp.I0_tol
+        return num_pred_roots <= gp.max_order and num_pred_roots >= 1
 
     def from_polysolve(self,lp,b,num_pred_roots,I0):
-        self.interior_rough = locate_poly_roots(b.y_smooth,b.c,num_pred_roots)
-        status = 0
+        if not lp.mode & mode_boundary_smoothing_off:
+            self.interior_rough = locate_poly_roots(b.y_smooth,b.c,
+                                                    num_pred_roots)
+        else:
+            self.interior_rough = locate_poly_roots(b.y,b.c,num_pred_roots)
+
+        status = ok
         ##TODO: best way to pick points for Muller method below
         for rough_root in self.interior_rough:
-            status |= locate_muller_root(lp,rough_root-gp.mul_off,
+            status |= _locate_muller_root(lp,rough_root-gp.mul_off,
                                         rough_root+gp.mul_off,rough_root,
                                         self.interior_passed_fz,
                                         self.interior_failed_fz)
-        status |= check_against_rough_roots(lp,I0,self.interior_failed_fz,
+        status |= _check_against_rough_roots(lp,I0,self.interior_failed_fz,
                                             self.interior_passed_z)
         self.interior_all = self.interior_passed_fz + self.interior_passed_z
 
@@ -411,7 +483,7 @@ class root_container:
         else:
             #Use all when stripped incase we find one that happens to be in an
             #adjacent region (since overlapping when subregions) Any roots
-            #outside the specified region will be removed in correct_roots.
+            #outside the specified region will be removed in _correct_roots.
             self.interior_within = inside_boundary(self.interior_purged,
                                                    *b.reg_m())
 
@@ -428,41 +500,134 @@ class root_container:
         if not lp.mode & mode_use_stripped_subtraction:
             root_set.extend(self.boundary_new)
         self.region = purge(root_set,gp.dist_eps)
-        self.region_corrected,self.num_added_conjs = correct_roots(lp,b,
+        self.region_corrected,self.num_added_conjs = _correct_roots(lp,b,
                                                                    self.region)
         self.log_region(lp,b,I0,sub_required)
 
-    def finialise_end_roots(self,lp,status):
+    def finialise_end_roots(self,lp,b,status):
         # Only return new roots. They'll be added to known roots in the parent.
         self.end = self.region_corrected+self.interior_all_subs
         self.end_purged = purge(self.end,gp.dist_eps)
         self.end_unique = get_unique(self.end_purged,self.known,gp.dist_eps)
+        self.end_within = inside_boundary(self.end_unique, *b.reg_i())
         self.log_totals(lp)
         self.log_notes(lp,status)
         self.log_roots(lp)
         self.log_close_region(lp)
 
 class boundary:
-    def __init__(self,lp,rx,ry,rw,rh):
+    def __init__(self,rx,ry,rw,rh):
+        self.rx_start = rx
+        self.ry_start = ry
+        self.rw_start = rw
+        self.rh_start = rh
+        self.cnt = 0
+
+    def set(self,lp,I0,calculate=True):
+        self.stuck = False
+        rx,ry,rw,rh = self._calculate_mod_region_parameters(lp,I0)
+
         self.rx = rx
         self.ry = ry
-        
+
         self.rw_i = rw
         self.rh_i = rh
-        
+
         self.rw_m = rw+gp.bnd_thres
         self.rh_m = rh+gp.bnd_thres
-        
+
         self.rw_o = rw+2.*gp.bnd_thres
         self.rh_o = rh+2.*gp.bnd_thres
 
-        self.c = get_boundary(gp.N,*self.reg_calcs(lp))
-        self.f_frac = lambda z: gp.fp(z)/(2j*np.pi*gp.f(z))
-        self.y = [self.f_frac(z) for z in self.c]
-        self.max_ok = abs(gp.outlier_coeff*get_max(self.y))
+        if calculate:
+            self.c = get_boundary(gp.N,*self.reg_calcs(lp))
+            self.f_frac = lambda z: gp.fp(z)/(2j*np.pi*gp.f(z))
+            self.y = [self.f_frac(z) for z in self.c]
+            self.max_ok = abs(gp.outlier_coeff*get_max(self.y))
+
+        self.cnt+=1
+
+    def _get_side_position_dec(self,start,last,chg,lmt):
+        if chg is not None:
+            new = start - chg*self.cnt
+            if lmt is None or new > lmt:
+                return new,new!=last
+            else:
+                return lmt,lmt!=last
+        return start,False
+
+    def _get_side_position_inc(self,start,last,chg,lmt):
+        if chg is not None:
+            new = start + chg*self.cnt
+            if lmt is None or new < lmt:
+                return new,new!=last
+            else:
+                return lmt,lmt!=last
+        return start,False
+
+    def _calculate_mod_region_parameters(self,lp,I0):
+        if self.cnt != 0:
+            left_start = self.rx_start - self.rw_start
+            right_start = self.rx_start + self.rw_start
+            top_start = self.ry_start + self.rh_start
+            bot_start = self.ry_start - self.rh_start
+            
+            left_last = self.rx - self.rw_i
+            right_last = self.rx + self.rw_i
+            top_last = self.ry + self.rh_i
+            bot_last = self.ry - self.rh_i
+            
+            s = "."*lp.lvl_cnt
+            if lp.log & log_summary:
+                print s+"Attempting to change region, Bad Roche: "+str(abs(I0))
+
+            left,a = self._get_side_position_dec(left_start,left_last,
+                                                 gp.bnd_change_left,
+                                                 gp.bnd_limit_left)
+            right,b = self._get_side_position_inc(right_start,right_last,
+                                                  gp.bnd_change_right,
+                                                  gp.bnd_limit_right)
+            top,c = self._get_side_position_inc(top_start,top_last,
+                                                gp.bnd_change_top,
+                                                gp.bnd_limit_top)
+            bot,d = self._get_side_position_dec(bot_start,bot_last,
+                                                gp.bnd_change_bottom,
+                                                gp.bnd_limit_bottom)
+
+            rx = (left + right) / 2.
+            ry = (top + bot) / 2.
+            rw = abs((left - right) / 2.)
+            rh = abs((top - bot) / 2.)
+
+            if a or b or c or d:
+                global test_region_changes
+                test_region_changes += 1
+                if lp.log & log_summary:
+                    print (s+"  Region changed(rx,ry,rw,rh): "+str(rx)+" "+\
+                           str(ry)+" "+str(rw)+" "+str(rh))
+            else:
+                if lp.log & log_summary:
+                    print s+"  Region stuck."
+                self.stuck = True
+        else:
+            rx = self.rx_start
+            ry = self.ry_start
+            rw = self.rw_start
+            rh = self.rh_start
+
+        return rx,ry,rw,rh
+
+    def is_stuck(self):
+        return self.stuck
+
+    def exceeded_tries(self):
+        return self.cnt>gp.bnd_change_max_tries
 
     def get_corner_indices(self):
         return [0, gp.N, 2*gp.N, 3*gp.N]
+
+    def reg_start(self):
+        return self.rx_start, self.ry_start, self.rw_start, self.rh_start
 
     def reg_i(self):
         return self.rx, self.ry, self.rw_i, self.rh_i
@@ -487,7 +652,7 @@ class boundary:
 
     def smoothed(self,roots):
         self.y_smooth = []
-        status = 0
+        status = ok
         for y_el,z_el in zip(self.y,self.c):
             val, ret = new_f_frac_safe(self.f_frac,z_el,
                                        roots.residues_subtracted,
@@ -507,17 +672,24 @@ class boundary:
         return x_list, y_list
 
     def print_region_string(self,lp):
-        if lp.mode & mode_log_summary:
+        if lp.log & log_summary:
             s = "-"*lp.lvl_cnt
             print ("\n"+s+"Region(rx,ry,rw,rh): "+\
                    str(self.rx)+" "+str(self.ry)+\
                    " "+str(self.rw_i)+" "+str(self.rh_i))
 
+def _boundary_status(b,I0):
+    if not gp.is_roche_accurate(I0):
+        if b.is_stuck():
+            return note_boundary_stuck
+        if b.exceeded_tries():
+            return note_boundary_cnt_exceeded
+    return ok
 
-def all_interior_found(roots,num_pred_roots):
+def _all_interior_found(roots,num_pred_roots):
     return len(roots.interior_new)>=num_pred_roots
 
-def do_subcalculation(lp,roots,I0,num_pred_roots):
+def _do_subcalculation(lp,roots,I0,num_pred_roots):
     ret = False
     if (cmath.isinf(I0) or cmath.isnan(I0)) and\
            not lp.mode & mode_dont_recurse_on_bad_roche:
@@ -525,11 +697,10 @@ def do_subcalculation(lp,roots,I0,num_pred_roots):
     else:
         # Don't count the added conjs at this stage, just pass them to the 
         # subregions. Otherwise will confuse the routine.
-        all_int_fnd = all_interior_found(roots,num_pred_roots)
-        roche_accurate = gp.is_roche_accurate(I0)        
-        if num_pred_roots > gp.max_order+gp.I0_tol:
+        all_int_fnd = _all_interior_found(roots,num_pred_roots)
+        if num_pred_roots > gp.max_order:
             ret = True
-        elif not roche_accurate and\
+        elif not gp.is_roche_accurate(I0) and\
            not lp.mode & mode_dont_recurse_on_inaccurate_roche:
             ret = True
         elif not all_int_fnd and\
@@ -537,24 +708,31 @@ def do_subcalculation(lp,roots,I0,num_pred_roots):
             ret = True
     return ret and lp.max_steps!=0
 
-def calculate_for_subregions(lp,b,roots):
-    if lp.mode & mode_log_recursive:
-        new_mode = lp.mode
+def _change_boundary(lp,b,I0):
+    if I0 is None:
+        return True
+    return not lp.mode & mode_boundary_change_off and not b.is_stuck() and\
+           not gp.is_roche_accurate(I0) and not b.exceeded_tries()
+
+def _calculate_for_subregions(lp,b,roots):
+    if lp.log & log_recursive:
+        new_log = lp.log
     else:
-        new_mode = lp.mode & mode_log_switch
-    status = 0
+        new_log = log_off
+    status = ok
     known_roots = roots.region + roots.known
     num_regions = 0
     for x,y in zip(*b.get_subregions()):
         new_state,sub_roots = droots(gp.f,gp.fp,x,y,b.rw_i/2.,b.rh_i/2.,gp.N,
-                               lp.max_steps-1,new_mode,known_roots,lp.lvl_cnt+1)
+                               lp.max_steps-1,lp.mode,new_log,known_roots,
+                               lp.lvl_cnt+1)
         status |= new_state
         roots.interior_all_subs.extend(sub_roots)
         num_regions += 1
     if lp.lvl_cnt == 0:
-        #Need this here since subregion roots added after correct_roots.
+        #Need this here since subregion roots added after _correct_roots.
         roots.interior_all_subs = inside_boundary(roots.interior_all_subs,
-                                                  *b.reg_i())
+                                                  *b.reg_start())
     return status,num_regions
 
 class global_parameters:
@@ -575,6 +753,16 @@ class global_parameters:
         self.mul_fzhtol = default_mul_fzhtol
         self.mul_off = default_mul_off
 
+        self.bnd_change_left = default_bnd_change
+        self.bnd_change_right = default_bnd_change
+        self.bnd_change_top = default_bnd_change
+        self.bnd_change_bottom = default_bnd_change
+        self.bnd_limit_left = default_bnd_limit
+        self.bnd_limit_right = default_bnd_limit
+        self.bnd_limit_top = default_bnd_limit
+        self.bnd_limit_bottom = default_bnd_limit
+        self.bnd_change_max_tries = default_bnd_change_max_tries
+
         self.conj_min_i = default_conj_min_i
         self.mul_ztol = default_mul_ztol
 
@@ -582,6 +770,8 @@ class global_parameters:
         self.lmt_N = default_lmt_N
         self.lmt_eps = default_lmt_eps
         self.bnd_thres = default_bnd_thres
+
+        self.left = None
 
     def set_delves_routine_parameters(self,outlier_coeff,max_order,I0_tol):
         self.outlier_coeff = outlier_coeff
@@ -594,7 +784,22 @@ class global_parameters:
         self.mul_fzhtol = mul_fzhtol
         self.mul_off = mul_off
 
-    def set_mode_parameters(self, mul_ztol, conj_min_i):
+    def set_changing_region_parameters(self,bnd_change_left,bnd_change_right, 
+                                       bnd_change_top,bnd_change_bottom,
+                                       bnd_limit_left,bnd_limit_right,
+                                       bnd_limit_top,bnd_limit_bottom, 
+                                       bnd_change_max_tries):
+        self.bnd_change_left = bnd_change_left
+        self.bnd_change_right = bnd_change_right
+        self.bnd_change_top = bnd_change_top
+        self.bnd_change_bottom = bnd_change_bottom
+        self.bnd_limit_left = bnd_limit_left
+        self.bnd_limit_right = bnd_limit_right
+        self.bnd_limit_top = bnd_limit_top
+        self.bnd_limit_bottom = bnd_limit_bottom
+        self.bnd_change_max_tries = bnd_change_max_tries
+
+    def set_mode_parameters(self,mul_ztol,conj_min_i):
         self.conj_min_i = conj_min_i
         self.mul_ztol = mul_ztol
 
@@ -615,8 +820,11 @@ class global_parameters:
             self.fp = lambda x: self.fun_multiplier*fp(x)
         self.N = N
 
+    def set_limits(self,left):
+        self.left = left
+
     def handle_state(self,lp,status):
-        if lp.mode & mode_log_verbose:
+        if status!=ok and lp.log & log_verbose:
             s = "."*lp.lvl_cnt
             print s+"State appended: " +str(status)
         return status
@@ -625,7 +833,7 @@ class global_parameters:
         return abs(abs(I0)-round(abs(I0)))<self.I0_tol
 
     def update_state_for_subcalc(self,lp,do_subcalc,roots,num_pred_roots,I0):
-        status = 0
+        status = ok
         if cmath.isinf(I0) or cmath.isnan(I0):
             if do_subcalc:
                 status = gp.handle_state(lp,note_bad_roche)
@@ -636,7 +844,7 @@ class global_parameters:
                 status = gp.handle_state(lp,note_inaccurate_roche)
             else:
                 status = gp.handle_state(lp,warn_inaccurate_roche)
-        elif not all_interior_found(roots,num_pred_roots):
+        elif not _all_interior_found(roots,num_pred_roots):
             if do_subcalc:
                 status = gp.handle_state(lp,note_could_not_locate_roche_root)
             else:
@@ -644,13 +852,14 @@ class global_parameters:
         return status
 
 class local_parameters:
-    def __init__(self,max_steps,mode,lvl_cnt):
+    def __init__(self,max_steps,mode,log,lvl_cnt):
         self.max_steps = max_steps
         self.mode = mode
+        self.log = log
         self.lvl_cnt = lvl_cnt
         
     def init_state(self):
-        status = 0
+        status = ok
         if self.mode & mode_accept_all_mullers:
             status = warn_root_check_disabled
         return status
@@ -697,18 +906,62 @@ def set_muller_parameters(mul_N=default_mul_N,mul_fzltol=default_mul_fzltol,
     '''
     gp.set_muller_parameters(mul_N,mul_fzltol,mul_fzhtol,mul_off)
 
+def set_changing_region_parameters(
+                        bnd_change_left=default_bnd_change,
+                        bnd_change_right=default_bnd_change,
+                        bnd_change_top=default_bnd_change,
+                        bnd_change_bottom=default_bnd_change,
+                        bnd_limit_left=default_bnd_limit,
+                        bnd_limit_right=default_bnd_limit,
+                        bnd_limit_top=default_bnd_limit,
+                        bnd_limit_bottom=default_bnd_limit,
+                        bnd_change_max_tries=default_bnd_change_max_tries):
+    '''
+    These parameters are only relevant if the related mode is set.
+
+    Args:
+        bnd_change_left (optional[float]): If mode is not
+            mode_boundary_change_off then this value will be applied when 
+            changing region due to bad roche. Applies to left of region.
+
+        bnd_change_right (optional[float]): See bnd_change_left. Applies to
+            right of region.
+
+        bnd_change_top (optional[float]): See bnd_change_left. Applies to
+            top of region.
+
+        bnd_change_bottom (optional[float]): See bnd_change_left. Applies to
+            bottom of region.
+
+        bnd_limit_left (optional[float]): If mode is not mode_boundary_limit_off
+            then the changing region will be limited by this value. Applies to
+            left of region.
+
+        bnd_limit_right (optional[float]): See bnd_limit_left. Applies to right
+            of region.
+
+        bnd_limit_top (optional[float]): See bnd_limit_left. Applies to top of 
+            region.
+
+        bnd_limit_bottom (optional[float]): See bnd_limit_left. Applies to 
+            bottom of region.
+
+        bnd_change_max_tries (optional[int]): If mode is not
+            mode_boundary_change_off then this value will be the maximum number
+            of attempts at finding a good roche for different regions sizes.
+    '''
+    gp.set_changing_region_parameters(bnd_change_left,bnd_change_right,
+                                      bnd_change_top,bnd_change_bottom,
+                                      bnd_limit_left,bnd_limit_right,
+                                      bnd_limit_top,bnd_limit_bottom,
+                                      bnd_change_max_tries)
+
 def set_mode_parameters(mul_ztol=default_mul_ztol,
                         conj_min_i=default_conj_min_i):
     '''
     These parameters are only relevant if the related mode is set.
 
     Args:
-        conj_min_i (optional[float]): If mode is:
-            mode_add_conjs
-            then this parameter determines the minimum distance from the real 
-            axis a root must lie before being considered as having a conjugate 
-            partner.
-
         mul_ztol (optional[float]): If mode is: 
             mode_accept_bnd_muller_close_to_start
             mode_accept_int_muller_close_to_good_roche
@@ -716,6 +969,11 @@ def set_mode_parameters(mul_ztol=default_mul_ztol,
             then this parameter determines the distance from the rough that the 
             returned (failed muller) can be within to be re-accepted as a good 
             root.
+
+        conj_min_i (optional[float]): If mode is mode_add_conjs:
+            then this parameter determines the minimum distance from the real 
+            axis a root must lie before being considered as having a conjugate 
+            partner.
     '''
     gp.set_mode_parameters(mul_ztol, conj_min_i)
     
@@ -764,7 +1022,7 @@ def print_status(status, s=""):
     print "Status Num: " + str(status)
     
 def droots(f,fp,rx,ry,rw,rh,N=default_N,max_steps=default_max_steps,
-           mode=default_mode,known_roots=[],lvl_cnt=0):
+           mode=default_mode,log=default_log,known_roots=[],lvl_cnt=0):
     '''
     I assume f is analytic with simple (i.e. order one) zeros.
 
@@ -794,6 +1052,9 @@ def droots(f,fp,rx,ry,rw,rh,N=default_N,max_steps=default_max_steps,
         mode (optional[int]): This sets the calculation mode. See top of file
             for available modes.
 
+        log (optional[int]): This sets the log mode. See top of file for
+            available modes.
+
         known_roots (internal[list of complex numbers]): Roots of f that are
             already known. Used when recursing
 
@@ -804,37 +1065,48 @@ def droots(f,fp,rx,ry,rw,rh,N=default_N,max_steps=default_max_steps,
             I0_tol parameters. A list of roots for the function f inside the 
             rectangle determined by the values rx,ry,rw and rh.
     '''
-    lp = local_parameters(max_steps,mode,lvl_cnt)
+    lp = local_parameters(max_steps,mode,log,lvl_cnt)
     gp.set_calc_parameters(f,fp,N)
+    if lvl_cnt == 0:
+        gp.set_limits(rx-rw)
     roots = root_container(known_roots)
     status = lp.init_state()
     num_regions = 0
 
-    b = boundary(lp,rx,ry,rw,rh)
-    status |= gp.handle_state(lp,roots.at_boundary(lp,b))
+    I0 = None
+    b = boundary(rx,ry,rw,rh)
+    while _change_boundary(lp,b,I0):
+        b.set(lp,I0)
 
-    status |= gp.handle_state(lp,b.smoothed(roots))
-    I0 = integrate.trapz(b.y_smooth,b.c)  # Approx num of roots not subtracted
-    
+        if lp.mode & mode_boundary_search_on:
+            status |= gp.handle_state(lp,roots.at_boundary(lp,b))
+
+        if not lp.mode & mode_boundary_smoothing_off:
+            status |= gp.handle_state(lp,b.smoothed(roots))
+            I0 = integrate.trapz(b.y_smooth,b.c)
+        else:
+            I0 = integrate.trapz(b.y,b.c)
+    status |= gp.handle_state(lp,_boundary_status(b,I0))
+
     num_pred_roots = 0
     if not cmath.isinf(I0) and not cmath.isnan(I0):
         num_pred_roots = int(math.ceil(abs(I0)-gp.I0_tol))
-    
-    if roots.is_polysolve_required(lp,I0,num_pred_roots):
+
+    if roots.is_polysolve_required(lp,num_pred_roots,I0):
         new_state = roots.from_polysolve(lp,b,num_pred_roots,I0)
         status |= gp.handle_state(lp,new_state)
 
-    do_subcalc = do_subcalculation(lp,roots,I0,num_pred_roots)
+    do_subcalc = _do_subcalculation(lp,roots,I0,num_pred_roots)
     roots.finialise_region_roots(lp,b,I0,do_subcalc)
     if do_subcalc:
-        new_state,num_regions = calculate_for_subregions(lp,b,roots)
+        new_state,num_regions = _calculate_for_subregions(lp,b,roots)
         status |= new_state
         roots.log_sub_region(lp,num_regions)
 
     new_state = gp.update_state_for_subcalc(lp,do_subcalc,roots,num_pred_roots,
                                             I0)
     status |= gp.handle_state(lp,new_state)
-    
-    roots.finialise_end_roots(lp,status)
+
+    roots.finialise_end_roots(lp,b,status)
 
     return status,roots.end_unique
