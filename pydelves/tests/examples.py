@@ -14,7 +14,7 @@ import scipy.constants as consts
 import matplotlib.pyplot as plt
 import time
 
-def trig():
+def trig(mode=default_mode):
     '''
     Make a square of length just under 5*pi. Find the roots of sine.
     '''
@@ -26,29 +26,26 @@ def trig():
     width = 5.*np.pi+1e-5
     height = 5.*np.pi+1e-5
 
-    return droots(f,fp,x_cent,y_cent,width,height)
+    return droots(f,fp,x_cent,y_cent,width,height,mode=mode)
 
 def get_root_bounds(roots):
-  x_lmt = [None,None]
-  y_lmt = [None,None]
-  for root in roots:
-    if x_lmt[0] is None or x_lmt[0]>root.real:
-      x_lmt[0] = root.real
-    if x_lmt[1] is None or x_lmt[1]<root.real:
-      x_lmt[1] = root.real
-    if y_lmt[0] is None or y_lmt[0]>root.imag:
-      y_lmt[0] = root.imag
-    if y_lmt[1] is None or y_lmt[1]<root.imag:
-      y_lmt[1] = root.imag
-  return x_lmt, y_lmt 
+    x_lmt = [None,None]
+    y_lmt = [None,None]
+    for root in roots:
+        if x_lmt[0] is None or x_lmt[0]>root.real:
+            x_lmt[0] = root.real
+        if x_lmt[1] is None or x_lmt[1]<root.real:
+            x_lmt[1] = root.real
+        if y_lmt[0] is None or y_lmt[0]>root.imag:
+            y_lmt[0] = root.imag
+        if y_lmt[1] is None or y_lmt[1]<root.imag:
+            y_lmt[1] = root.imag
+    return x_lmt, y_lmt 
 
 def get_coeff(polyOrder):
     coeff = []
     for n in range(polyOrder):
-      coeff.append((n+1)*1.0+(n+1)*1.0j)
-    roots_numpy = np.roots(coeff)
-    bnds = get_root_bounds(roots_numpy)
-
+        coeff.append((n+1)*1.0+(n+1)*1.0j)
     return np.poly1d(coeff)
 
 def get_poly_fun(polyOrder):
@@ -133,7 +130,7 @@ def boundary_root(N=default_N,max_steps=default_max_steps,mode=default_mode):
     '''
     f = lambda z: pow(z,2.)
     fp = lambda z: 2.*z
-    x_cent = 0.
+    x_cent = 1.
     y_cent = 0.
     width = 1.
     height = 1.
