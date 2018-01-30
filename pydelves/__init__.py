@@ -166,7 +166,7 @@ default_mul_off = 1e-5
 default_mul_ztol = 1e-4
 default_bnd_change = 0.01
 default_bnd_limit = None
-default_bnd_change_max_tries = 5
+default_bnd_max_tries = 5
 default_conj_min_i = 1e-8
 default_dist_eps = 1e-7
 default_lmt_N = 10
@@ -582,17 +582,17 @@ class boundary:
                 print s+"Attempting to change region, Bad Roche: "+str(abs(I0))
 
             left,a = self._get_side_position_dec(left_start,left_last,
-                                                 gp.bnd_change_left,
-                                                 gp.bnd_limit_left)
+                                                 gp.change_left,
+                                                 gp.limit_left)
             right,b = self._get_side_position_inc(right_start,right_last,
-                                                  gp.bnd_change_right,
-                                                  gp.bnd_limit_right)
+                                                  gp.change_right,
+                                                  gp.limit_right)
             bot,c = self._get_side_position_dec(bot_start,bot_last,
-                                                gp.bnd_change_bottom,
-                                                gp.bnd_limit_bottom)
+                                                gp.change_bottom,
+                                                gp.limit_bottom)
             top,d = self._get_side_position_inc(top_start,top_last,
-                                                gp.bnd_change_top,
-                                                gp.bnd_limit_top)
+                                                gp.change_top,
+                                                gp.limit_top)
 
             rx = (left + right) / 2.
             ry = (top + bot) / 2.
@@ -621,7 +621,7 @@ class boundary:
         return self.stuck
 
     def exceeded_tries(self):
-        return self.cnt>gp.bnd_change_max_tries
+        return self.cnt>gp.max_tries
 
     def get_corner_indices(self):
         return [0, gp.N, 2*gp.N, 3*gp.N]
@@ -753,15 +753,15 @@ class global_parameters:
         self.mul_fzhtol = default_mul_fzhtol
         self.mul_off = default_mul_off
 
-        self.bnd_change_left = default_bnd_change
-        self.bnd_change_right = default_bnd_change
-        self.bnd_change_bottom = default_bnd_change
-        self.bnd_change_top = default_bnd_change
-        self.bnd_limit_left = default_bnd_limit
-        self.bnd_limit_right = default_bnd_limit
-        self.bnd_limit_bottom = default_bnd_limit
-        self.bnd_limit_top = default_bnd_limit
-        self.bnd_change_max_tries = default_bnd_change_max_tries
+        self.change_left = default_bnd_change
+        self.change_right = default_bnd_change
+        self.change_bottom = default_bnd_change
+        self.change_top = default_bnd_change
+        self.limit_left = default_bnd_limit
+        self.limit_right = default_bnd_limit
+        self.limit_bottom = default_bnd_limit
+        self.limit_top = default_bnd_limit
+        self.max_tries = default_bnd_max_tries
 
         self.conj_min_i = default_conj_min_i
         self.mul_ztol = default_mul_ztol
@@ -784,20 +784,20 @@ class global_parameters:
         self.mul_fzhtol = mul_fzhtol
         self.mul_off = mul_off
 
-    def set_changing_region_parameters(self,bnd_change_left,bnd_change_right, 
-                                       bnd_change_bottom,bnd_change_top,
-                                       bnd_limit_left,bnd_limit_right,
-                                       bnd_limit_bottom, bnd_limit_top,
-                                       bnd_change_max_tries):
-        self.bnd_change_left = bnd_change_left
-        self.bnd_change_right = bnd_change_right
-        self.bnd_change_bottom = bnd_change_bottom
-        self.bnd_change_top = bnd_change_top
-        self.bnd_limit_left = bnd_limit_left
-        self.bnd_limit_right = bnd_limit_right
-        self.bnd_limit_bottom = bnd_limit_bottom
-        self.bnd_limit_top = bnd_limit_top
-        self.bnd_change_max_tries = bnd_change_max_tries
+    def set_changing_region_parameters(self,change_left,change_right, 
+                                       change_bottom,change_top,
+                                       limit_left,limit_right,
+                                       limit_bottom, limit_top,
+                                       max_tries):
+        self.change_left = change_left
+        self.change_right = change_right
+        self.change_bottom = change_bottom
+        self.change_top = change_top
+        self.limit_left = limit_left
+        self.limit_right = limit_right
+        self.limit_bottom = limit_bottom
+        self.limit_top = limit_top
+        self.max_tries = max_tries
 
     def set_mode_parameters(self,mul_ztol,conj_min_i):
         self.conj_min_i = conj_min_i
@@ -906,55 +906,53 @@ def set_muller_parameters(mul_N=default_mul_N,mul_fzltol=default_mul_fzltol,
     '''
     gp.set_muller_parameters(mul_N,mul_fzltol,mul_fzhtol,mul_off)
 
-def set_changing_region_parameters(
-                        bnd_change_left=default_bnd_change,
-                        bnd_change_right=default_bnd_change,
-                        bnd_change_bottom=default_bnd_change,
-                        bnd_change_top=default_bnd_change,
-                        bnd_limit_left=default_bnd_limit,
-                        bnd_limit_right=default_bnd_limit,
-                        bnd_limit_bottom=default_bnd_limit,
-                        bnd_limit_top=default_bnd_limit,
-                        bnd_change_max_tries=default_bnd_change_max_tries):
+def set_changing_region_parameters(change_left=default_bnd_change,
+                                   change_right=default_bnd_change,
+                                   change_bottom=default_bnd_change,
+                                   change_top=default_bnd_change,
+                                   limit_left=default_bnd_limit,
+                                   limit_right=default_bnd_limit,
+                                   limit_bottom=default_bnd_limit,
+                                   limit_top=default_bnd_limit,
+                                   max_tries=default_bnd_max_tries):
     '''
     These parameters are only relevant if the related mode is set.
 
     Args:
-        bnd_change_left (optional[float]): If mode is not
+        change_left (optional[float]): If mode is not
             mode_boundary_change_off then this value will be applied when 
             changing region due to bad roche. Applies to left of region.
 
-        bnd_change_right (optional[float]): See bnd_change_left. Applies to
+        change_right (optional[float]): See change_left. Applies to
             right of region.
 
-        bnd_change_bottom (optional[float]): See bnd_change_left. Applies to
+        change_bottom (optional[float]): See change_left. Applies to
             bottom of region.
 
-        bnd_change_top (optional[float]): See bnd_change_left. Applies to
+        change_top (optional[float]): See change_left. Applies to
             top of region.
 
-        bnd_limit_left (optional[float]): If mode is not mode_boundary_limit_off
+        limit_left (optional[float]): If mode is not mode_boundary_limit_off
             then the changing region will be limited by this value. Applies to
             left of region.
 
-        bnd_limit_right (optional[float]): See bnd_limit_left. Applies to right
+        limit_right (optional[float]): See limit_left. Applies to right
             of region.
 
-        bnd_limit_bottom (optional[float]): See bnd_limit_left. Applies to 
+        limit_bottom (optional[float]): See limit_left. Applies to 
             bottom of region.
 
-        bnd_limit_top (optional[float]): See bnd_limit_left. Applies to top of 
+        limit_top (optional[float]): See limit_left. Applies to top of 
             region.
 
-        bnd_change_max_tries (optional[int]): If mode is not
+        max_tries (optional[int]): If mode is not
             mode_boundary_change_off then this value will be the maximum number
             of attempts at finding a good roche for different regions sizes.
     '''
-    gp.set_changing_region_parameters(bnd_change_left,bnd_change_right,
-                                      bnd_change_bottom,bnd_change_top,
-                                      bnd_limit_left,bnd_limit_right,
-                                      bnd_limit_bottom,bnd_limit_top,
-                                      bnd_change_max_tries)
+    gp.set_changing_region_parameters(change_left,change_right,
+                                      change_bottom,change_top,
+                                      limit_left,limit_right,
+                                      limit_bottom,limit_top,max_tries)
 
 def set_mode_parameters(mul_ztol=default_mul_ztol,
                         conj_min_i=default_conj_min_i):
