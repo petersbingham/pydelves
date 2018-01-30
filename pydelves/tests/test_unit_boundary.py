@@ -26,7 +26,7 @@ class boundary_limits(unittest.TestCase):
             for ry in [2.,-2.]:
                 for lmt in range(3):
                     set_changing_region_parameters(1.,1.,1.,1.,
-                        rx-1.-lmt,rx+1.+lmt,ry+1.+lmt,ry-1.-lmt)
+                        rx-1.-lmt,rx+1.+lmt,ry-1.-lmt,ry+1.+lmt)
                     b = boundary(rx,ry,1.,1.)
                     for cnt in range(4):
                         b.set(lp,0.,False)
@@ -56,10 +56,10 @@ class boundary_limits_center_change(unittest.TestCase):
                             None,rx+1.,None,None)
                     elif i==2:
                         set_changing_region_parameters(1.,1.,1.,1.,
-                            None,None,ry+1.,None)
+                            None,None,ry-1.,None)
                     elif i==3:
                         set_changing_region_parameters(1.,1.,1.,1.,
-                            None,None,None,ry-1.)
+                            None,None,None,ry+1.)
                     for cnt in range(4):
                         b.set(lp,0.,False)
                         if i==0:
@@ -70,9 +70,9 @@ class boundary_limits_center_change(unittest.TestCase):
                             self.assertEqual(b.rx,rx)
 
                         if i==2:
-                            self.assertEqual(b.ry,ry-0.5*cnt)
-                        elif i==3:
                             self.assertEqual(b.ry,ry+0.5*cnt)
+                        elif i==3:
+                            self.assertEqual(b.ry,ry-0.5*cnt)
                         else:
                             self.assertEqual(b.ry,ry)
 
