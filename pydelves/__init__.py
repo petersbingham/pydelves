@@ -66,6 +66,8 @@ mode_accept_all_mullers = 0x400
 #roche roots and to recurse with the I0 is bad.
 mode_attempt_polysolve_on_bad_roche = 0x800
 
+mode_always_attempt_polysolve_on_final_step = 0x1000
+
 ################################################################################
 ############################# Boundary Modes ###################################
 ################################################################################
@@ -446,6 +448,9 @@ class root_container:
         return status
 
     def is_polysolve_required(self,lp,num_pred_roots,I0):
+        if lp.max_steps==0 and\
+           lp.mode & mode_always_attempt_polysolve_on_final_step:
+            return True
         roche_accurate = gp.is_roche_accurate(I0)
         if (cmath.isinf(I0) or cmath.isnan(I0)) and\
            not lp.mode & mode_dont_recurse_on_bad_roche:
