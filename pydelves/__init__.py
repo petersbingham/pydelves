@@ -871,6 +871,10 @@ class local_parameters:
 
 gp = global_parameters()
 
+########################################################################   
+######################### Public Interface #############################
+########################################################################
+
 def set_delves_routine_parameters(outlier_coeff=default_outlier_coeff,
                                   max_order=default_max_order,
                                   I0_tol=default_I0_tol):
