@@ -10,5 +10,5 @@ setup(name='pyDelves',
       author="Peter Bingham",
       author_email="petersbingham@hotmail.co.uk",
       packages=['pydelves'],
-      package_data={'pydelves': ['tests/*', 'README.md'],
+      package_data={'pydelves': ['tests/*', 'README.md']}
      )
