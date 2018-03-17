@@ -6,7 +6,7 @@ shutil.copy('README.md', 'pyDelves/README.md')
 
 setup(name='pyDelves',
       version='2.5',
-      description='Finds roots of an analytical function',
+      description='Python package to find roots of an analytical function.',
       author="Peter Bingham",
       author_email="petersbingham@hotmail.co.uk",
       packages=['pydelves'],
